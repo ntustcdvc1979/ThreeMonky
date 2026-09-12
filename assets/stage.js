@@ -1,0 +1,450 @@
+/* 投影端。全場的節奏棒。
+
+   這一端【不知道任何一組現在在比什麼題】—— 各組自己抽題、自己揭曉，
+   所以這裡只負責：規則、站位、範例題、大倒數、時間到的 hype。
+   正式題目一個字都不會出現在投影幕上。 */
+(function () {
+  "use strict";
+
+  var U = window.TM_UTIL;
+  var $ = U.$, esc = U.esc;
+  var TERMS = window.TM_TERMS;
+  var ROLES = window.TM_ROLES.ROLES;
+  var QR = window.CDVC_QR;
+
+  /* 連範例題也不想先曝光的話，把這個改成 false */
+  var SHOW_DEMO_TERM = true;
+
+  var KEY = "tm.stage.v1";
+
+  /* ============================================================
+     手機端網址：從投影端的網址推，不寫死 domain。
+     https://u.github.io/ThreeMonky/            -> .../ThreeMonky/play.html
+     https://u.github.io/ThreeMonky/index.html  -> 同上
+     file:///C:/ThreeMonky/index.html           -> file:///C:/ThreeMonky/play.html
+     ============================================================ */
+  function playUrl() {
+    var u = new URL(location.href);
+    u.hash = "";
+    u.search = "";
+    // 這條同時處理「結尾是 /」和「結尾是 index.html」兩種情況
+    u.pathname = u.pathname.replace(/[^/]*$/, "") + "play.html";
+    var s = new URLSearchParams(location.search).get("s");
+    return u.href + (s ? "?s=" + encodeURIComponent(s) : "");
+  }
+
+  /** QR 的底一定要純白。米色紙在投影機上對比不夠，很多手機掃不到 */
+  function qrHtml() {
+    try {
+      return QR.svg(playUrl(), { dark: "#40260F", light: "#ffffff", quiet: 3 });
+    } catch (e) {
+      return '<p style="color:#333;padding:1rem;font-size:1rem">QR 產生失敗，請直接念網址</p>';
+    }
+  }
+
+  /* ============================================================
+     流程。一維陣列，中途要插一輪就直接 splice，沒有副作用。
+     ============================================================ */
+  var S = [];
+  function add(o) { S.push(o); }
+
+  add({ kind: "cover",   label: "封面・掃 QR" });
+  add({ kind: "rules",   label: "三隻猴子是誰" });
+  add({ kind: "lineup",  label: "站位示意" });
+  add({ kind: "demo",    label: "範例題：" + TERMS.DEMO.t });
+  add({ kind: "handoff", label: "比劃猴拿手機・選組號" });
+  for (var r = 1; r <= 3; r++) {
+    add({ kind: "round",  n: r, sec: (r === 1 ? 150 : 180), label: "第 " + r + " 輪（大倒數）" });
+    add({ kind: "timeup", n: r, label: "└ 時間到" });
+  }
+  add({ kind: "finale",  label: "結束" });
+
+  var i = 0;
+  var count = null;     // 3・2・1 的當前那一格
+  var showQR = true;    // 正式輪角落的小 QR
+  var ranToZero = false;
+
+  /* ============================================================
+     計時器
+     ============================================================ */
+  var ticker = U.Ticker(function (left, running) {
+    paintTimer(left, running);
+    if (running && left > 0 && left <= 10) { U.beep(880, 0.06); }
+    if (left === 0 && ranToZero) { ranToZero = false; U.beep(220, 0.9); }
+  });
+
+  function paintTimer(left, running) {
+    var el = $("clock");
+    if (!el) { return; }
+    var m = Math.floor(left / 60), s = left % 60;
+    el.className = "timer" + (left === 0 ? " zero" : (left <= 10 ? " low" : ""));
+    el.innerHTML = m + ":" + (s < 10 ? "0" : "") + s +
+      "<small>" + (left === 0 ? "時間到" : (running ? "比！" : "準備")) + "</small>";
+  }
+
+  function startRound() {
+    ranToZero = true;
+    ticker.start(ticker.left() > 0 ? ticker.left() : S[i].sec);
+  }
+
+  /* ============================================================
+     畫面
+     ============================================================ */
+  var VIEWS = {};
+  var AFTER = {};
+
+  function roleBar() {
+    return '<div class="rolebar">' + ROLES.map(function (x) {
+      return "<span>" + x.emoji + " <b>" + esc(x.name) + "</b>：" + esc(x.short) + "</span>";
+    }).join("") + "</div>";
+  }
+
+  VIEWS.cover = function () {
+    return "" +
+      '<div class="cover">' +
+        "<div>" +
+          '<p class="eyebrow">三人一組・一條直線</p>' +
+          '<h1 class="huge">三隻猴子</h1>' +
+          '<p class="lede">話從第一個人傳到第三個人，還會剩下多少？<br>' +
+            "題目只有 <b>🙊 比劃猴</b> 看得到，而答案 <b>不是用講的，是用畫的</b>。</p>" +
+        "</div>" +
+        '<div class="cover__qr">' +
+          '<div class="qr" id="qr"></div>' +
+          '<p class="cover__scan">SCAN ME</p>' +
+          '<p class="cover__url">' + esc(playUrl()) + "</p>" +
+          '<p class="cover__who">只有比劃猴要掃</p>' +
+        "</div>" +
+      "</div>";
+  };
+
+  AFTER.cover = function () { $("qr").innerHTML = qrHtml(); };
+
+  VIEWS.rules = function () {
+    return "" +
+      '<h1 class="big">三隻猴子</h1>' +
+      '<p class="lede">三個人一組，站成一直線。題目只有比劃猴看得到，' +
+        "<b>答案不是用講的，是用畫的</b>。</p>" +
+      '<div class="roles">' +
+        ROLES.map(function (x) {
+          return '<div class="role">' +
+            '<div class="role__e" aria-hidden="true">' + x.emoji + "</div>" +
+            '<div class="role__n">' + esc(x.name) + "</div>" +
+            '<div class="role__r">' + esc(x.rule) + "</div>" +
+            '<div class="role__t">' + esc(x.tip) + "</div>" +
+          "</div>";
+        }).join("") +
+      "</div>";
+  };
+
+  VIEWS.lineup = function () {
+    function monkey(x) {
+      return '<div class="lineup__m"><b aria-hidden="true">' + x.emoji + "</b>" +
+        "<span>" + esc(x.name) + "</span></div>";
+    }
+    function arrow(t) {
+      return '<div class="lineup__a"><b aria-hidden="true">➜</b><span>' + esc(t) + "</span></div>";
+    }
+    return "" +
+      '<p class="eyebrow">站位</p>' +
+      '<h1 class="big">' + esc(window.TM_ROLES.LINEUP) + "</h1>" +
+      '<div class="lineup">' +
+        monkey(ROLES[0]) + arrow("看動作") +
+        monkey(ROLES[1]) + arrow("聽聲音") +
+        monkey(ROLES[2]) + arrow("畫出來") +
+        '<div class="lineup__m"><b aria-hidden="true">📄</b><span>答案</span></div>' +
+      "</div>" +
+      '<p class="lede">猜題猴全程閉眼背對。旁邊的人可以看，<b>但出聲提示就算那組犯規</b>。</p>';
+  };
+
+  VIEWS.demo = function () {
+    return "" +
+      '<p class="term__n">範例題　先示範一次，大家看懂規則再開始</p>' +
+      (SHOW_DEMO_TERM
+        ? '<div class="term term--demo">' + esc(TERMS.DEMO.t) + "</div>"
+        : '<div class="big">（主持人口頭給題）</div>') +
+      roleBar() +
+      '<p class="lede quiet" style="font-size:1.2rem;margin-top:1.4rem">' +
+        "正式題只會出現在比劃猴的手機上，投影幕不會顯示。</p>";
+  };
+
+  VIEWS.handoff = function () {
+    var steps = [
+      ["①", "比劃猴掃 QR"],
+      ["②", "選你們是第幾組"],
+      ["③", "選難度，然後等我喊開始"]
+    ];
+    return "" +
+      '<p class="eyebrow">每組派一個人當 🙊 比劃猴</p>' +
+      '<h1 class="big">拿出手機</h1>' +
+      '<div class="steps">' +
+        steps.map(function (s) {
+          return '<div class="step"><b>' + s[0] + "</b><span>" + esc(s[1]) + "</span></div>";
+        }).join("") +
+      "</div>" +
+      '<div class="qr" id="qr" style="width:14rem;margin:1.8rem auto 0;border:.3rem solid #fff"></div>' +
+      '<p class="cover__url" style="font-size:1.1rem">' + esc(playUrl()) + "</p>";
+  };
+
+  AFTER.handoff = function () { $("qr").innerHTML = qrHtml(); };
+
+  VIEWS.round = function () {
+    var sc = S[i];
+    if (count !== null) {
+      return '<div class="count3' + (typeof count === "string" ? " count3--emoji" : "") + '">' +
+        esc(count) + "</div>";
+    }
+    return "" +
+      '<p class="eyebrow">第 ' + sc.n + " 輪</p>" +
+      '<div class="timer" id="clock">0:00<small>準備</small></div>' +
+      roleBar();
+  };
+
+  AFTER.round = function () {
+    paintTimer(ticker.left(), ticker.isRunning());
+    paintCornerQR();
+  };
+
+  VIEWS.timeup = function () {
+    return "" +
+      '<div class="slam">時間到 ✋</div>' +
+      '<p class="lede">🙈 猜題猴可以睜眼了。<br>把你畫的舉起來，跟原本的題目對一下。</p>';
+  };
+
+  AFTER.timeup = function () {
+    document.body.classList.add("hype");
+    U.beep(220, 0.9);
+  };
+
+  VIEWS.finale = function () {
+    return "" +
+      '<p class="eyebrow">三隻猴子</p>' +
+      '<h1 class="huge">話傳到最後<br>剩下多少？</h1>' +
+      '<p class="emoji" aria-hidden="true">🙊 🙉 🙈</p>' +
+      '<p class="lede">看得到的、聽得到的、說得出口的，中間都會掉一點東西。<br>' +
+        "所以聽人講話的時候，要多問一句。</p>";
+  };
+
+  /* ============================================================
+     渲染
+     ============================================================ */
+  function render() {
+    var sc = S[i];
+    document.body.classList.remove("hype");
+    $("screen").innerHTML = VIEWS[sc.kind]();
+    if (AFTER[sc.kind]) { AFTER[sc.kind](); }
+    paintWhere();
+    try { sessionStorage.setItem(KEY, String(i)); } catch (e) {}
+  }
+
+  function paintWhere() {
+    var sc = S[i];
+    var extra = "";
+    if (sc.kind === "round") {
+      extra = "　<kbd>S</kbd> 3・2・1 開始　<kbd>T</kbd> 暫停　<kbd>+</kbd><kbd>-</kbd> 加減 30 秒" +
+        "　<kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> 2/2.5/3 分　<kbd>H</kbd> 收 QR";
+    }
+    $("where").innerHTML = (i + 1) + " / " + S.length + "　" + esc(sc.label) + extra;
+  }
+
+  /** 正式輪角落的小 QR，給遲到或手機當掉的組 */
+  function paintCornerQR() {
+    var old = $("qrCorner");
+    if (old) { old.remove(); }
+    if (!showQR || S[i].kind !== "round" || count !== null) { return; }
+    var box = document.createElement("div");
+    box.className = "qr-corner";
+    box.id = "qrCorner";
+    box.innerHTML = '<div class="qr">' + qrHtml() + "</div><p>比劃猴掃這裡</p>";
+    document.body.appendChild(box);
+  }
+
+  function go(delta) {
+    var next = i + delta;
+    if (next < 0 || next >= S.length) { return; }
+    i = next;
+    count = null;
+    var sc = S[i];
+    if (sc.kind === "round") { ticker.arm(sc.sec); }
+    else { ticker.stop(); }
+    var stale = $("qrCorner");
+    if (stale) { stale.remove(); }
+    render();
+  }
+
+  function jump(n) {
+    i = Math.max(0, Math.min(S.length - 1, n));
+    count = null;
+    if (S[i].kind === "round") { ticker.arm(S[i].sec); } else { ticker.stop(); }
+    render();
+  }
+
+  /* 3・2・1 開始。序列跑完直接接上倒數 */
+  function runStartCountdown() {
+    if (count !== null) { return; }
+    var seq = [3, 2, 1, "開始"];
+    var at = 0;
+    (function step() {
+      count = seq[at];
+      render();
+      U.beep(at === seq.length - 1 ? 660 : 440, 0.12);
+      at++;
+      if (at < seq.length) { setTimeout(step, 900); }
+      else {
+        setTimeout(function () {
+          count = null;
+          render();
+          startRound();
+        }, 700);
+      }
+    })();
+  }
+
+  /* ============================================================
+     跳關選單
+     ============================================================ */
+  function buildMenu() {
+    $("menuList").innerHTML = S.map(function (sc, n) {
+      return "<li><button data-jump=\"" + n + "\" class=\"" + (n === i ? "now" : "") + "\">" +
+        (n + 1) + "　" + esc(sc.label) + "</button></li>";
+    }).join("") + '<li><button data-act="addRound">➕ 再加一輪</button></li>';
+    $("menuKeys").innerHTML =
+      "<kbd>F</kbd> 全螢幕　<kbd>S</kbd> 3・2・1 開始　<kbd>T</kbd> 倒數開始/暫停　" +
+      "<kbd>R</kbd> 重設本輪　<kbd>+</kbd><kbd>-</kbd> 加減 30 秒　" +
+      "<kbd>C</kbd> 亮場/暗場　<kbd>H</kbd> 角落 QR　<kbd>M</kbd> 靜音";
+  }
+
+  function toggleMenu() {
+    var m = $("menu");
+    if (m.hidden) { buildMenu(); m.hidden = false; }
+    else { m.hidden = true; }
+  }
+
+  /** 主持人臨時想多玩一輪。S 是純陣列，插進 finale 前面就好 */
+  function addRound() {
+    var at = S.length - 1;                       // finale 的位置
+    var n = S.filter(function (x) { return x.kind === "round"; }).length + 1;
+    S.splice(at, 0,
+      { kind: "round", n: n, sec: 180, label: "第 " + n + " 輪（大倒數）" },
+      { kind: "timeup", n: n, label: "└ 時間到" });
+    $("menu").hidden = true;
+    jump(at);
+  }
+
+  $("menu").addEventListener("click", function (e) {
+    var el = e.target.closest ? e.target.closest("button") : null;
+    if (!el) { return; }
+    if (el.getAttribute("data-act") === "addRound") { addRound(); return; }
+    var n = el.getAttribute("data-jump");
+    if (n === null) { return; }
+    $("menu").hidden = true;
+    jump(+n);
+  });
+
+  /* ============================================================
+     全螢幕・暗場
+     ============================================================ */
+  function toggleFull() {
+    if (document.fullscreenElement) { document.exitFullscreen(); }
+    else if (document.documentElement.requestFullscreen) {
+      document.documentElement.requestFullscreen()["catch"](function () {});
+    }
+  }
+
+  function applyDark(on) {
+    document.body.classList.toggle("dark", on);
+    try { localStorage.setItem("tm.dark", on ? "1" : "0"); } catch (e) {}
+  }
+
+  /* ============================================================
+     鍵盤
+     ============================================================ */
+  document.addEventListener("keydown", function (e) {
+    var sc = S[i];
+    U.warmAudio();                 // AudioContext 要在使用者手勢之後才能 resume
+
+    if (e.key === "Escape") { e.preventDefault(); toggleMenu(); return; }
+    if (!$("menu").hidden) { return; }
+
+    if (e.key === "ArrowRight" || e.key === " " || e.key === "PageDown" || e.key === "Enter") {
+      e.preventDefault(); go(1); return;
+    }
+    if (e.key === "ArrowLeft" || e.key === "PageUp") {
+      e.preventDefault(); go(-1); return;
+    }
+
+    if (e.key === "+" || e.key === "=") { ticker.add(30); return; }
+    if (e.key === "-" || e.key === "_") { ticker.add(-30); return; }
+
+    if (sc.kind === "round" && (e.key === "1" || e.key === "2" || e.key === "3")) {
+      sc.sec = { "1": 120, "2": 150, "3": 180 }[e.key];
+      ranToZero = true;
+      ticker.start(sc.sec);
+      return;
+    }
+
+    var k = e.key.toLowerCase();
+
+    if (k === "f") { toggleFull(); return; }
+    if (k === "c") { applyDark(!document.body.classList.contains("dark")); return; }
+    if (k === "m") { U.setMuted(!U.isMuted()); return; }
+
+    if (k === "h") { showQR = !showQR; paintCornerQR(); return; }
+
+    if (k === "s") { if (sc.kind === "round") { runStartCountdown(); } return; }
+
+    if (k === "t") {
+      if (sc.kind !== "round") { return; }
+      if (ticker.left() > 0) { ranToZero = true; ticker.pause(); }
+      else { ranToZero = true; ticker.start(sc.sec); }
+      return;
+    }
+
+    if (k === "r") {
+      if (sc.kind === "round") { ticker.arm(sc.sec); }
+      return;
+    }
+  });
+
+  /* ============================================================
+     控制列：滑鼠不動 3 秒就收起來
+     ============================================================ */
+  var idle = 0;
+  document.addEventListener("mousemove", function () {
+    document.body.classList.add("show-ui");
+    clearTimeout(idle);
+    idle = setTimeout(function () {
+      document.body.classList.remove("show-ui");
+    }, 3000);
+  });
+
+  $("bar").addEventListener("click", function (e) {
+    var el = e.target.closest ? e.target.closest("[data-act]") : null;
+    if (!el) { return; }
+    var a = el.getAttribute("data-act");
+    if (a === "prev") { go(-1); }
+    else if (a === "next") { go(1); }
+    else if (a === "menu") { toggleMenu(); }
+    else if (a === "full") { toggleFull(); }
+  });
+
+  /* ============================================================
+     開場
+     ============================================================ */
+  try { applyDark(localStorage.getItem("tm.dark") === "1"); } catch (e) {}
+
+  // 投影端不小心重整時回到同一頁，但【倒數不自動續跑】—— 主持人要有主動權
+  try {
+    var saved = parseInt(sessionStorage.getItem(KEY), 10);
+    if (saved >= 0 && saved < S.length) { i = saved; }
+  } catch (e) {}
+
+  if (S[i].kind === "round") { ticker.arm(S[i].sec); }
+  render();
+
+  // 投影端也註冊，主持人的筆電斷網一樣開得起來
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", function () {
+      navigator.serviceWorker.register("./sw.js")["catch"](function () {});
+    });
+  }
+})();

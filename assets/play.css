@@ -1,0 +1,230 @@
+/* 手機端：只有 🙊 比劃猴會看到這一頁。
+   設計前提是單手直握、在吵雜的場地、而且會被緊張的人狂按。 */
+
+html{ -webkit-text-size-adjust:100%; }
+
+body{
+  background:var(--paper);
+  color:var(--ink);
+  min-height:100dvh;            /* 不是 100vh：iOS 網址列收合會讓版面跳一下 */
+  overscroll-behavior:none;     /* 關掉下拉重新整理 <- 防誤觸第一道防線 */
+  -webkit-tap-highlight-color:transparent;
+  user-select:none; -webkit-user-select:none;
+  touch-action:manipulation;    /* 關掉 double-tap zoom 的 300ms 延遲 */
+  transition:background .25s ease;
+}
+
+/* 揭曉時整個畫面染色，主持人遠遠就看得出哪組揭曉了，好巡場 */
+body.is-hit{
+  background:
+    radial-gradient(60rem 40rem at 50% 26%, rgba(14,140,143,.30), transparent 70%),
+    var(--paper);
+}
+body.is-skip{
+  background:
+    radial-gradient(60rem 40rem at 50% 26%, rgba(122,85,38,.20), transparent 70%),
+    var(--paper);
+}
+
+.view{
+  display:flex;
+  flex-direction:column;
+  min-height:100dvh;
+  max-width:30rem;
+  margin:0 auto;
+  padding:1.1rem 1.1rem calc(.6rem + env(safe-area-inset-bottom));
+  gap:.9rem;
+}
+
+.spacer{flex:1 1 auto;min-height:.5rem;}
+
+/* ---------- 共用文字 ---------- */
+.eyebrow{
+  margin:0; font-size:.8rem; font-weight:900;
+  letter-spacing:.24em; color:var(--ink-2); opacity:.85;
+}
+.hero{margin:0;font-size:1.9rem;font-weight:900;line-height:1.25;}
+.lede{margin:0;font-size:1rem;line-height:1.6;color:var(--ink-2);}
+.tiny{margin:0;font-size:.8rem;color:var(--ink-2);opacity:.8;}
+
+.pill{
+  display:inline-block;white-space:nowrap;
+  padding:.22rem .7rem;border-radius:999px;
+  background:#fff;border:.1rem solid rgba(122,85,38,.24);
+  font-size:.78rem;font-weight:800;color:var(--ink-2);
+}
+
+.row{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;}
+.row--between{justify-content:space-between;}
+
+/* ---------- 卡片 ---------- */
+.card{
+  background:#fff;
+  border:.12rem solid rgba(122,85,38,.2);
+  border-radius:1.1rem;
+  box-shadow:0 .25rem 0 rgba(90,52,18,.1);
+  padding:1rem 1.1rem;
+}
+body.dark .card{background:rgba(255,255,255,.07);}
+
+.note{
+  padding:.6rem .85rem;border-radius:.8rem;
+  background:rgba(233,163,23,.18);
+  border:.1rem solid rgba(233,163,23,.5);
+  font-size:.85rem;font-weight:700;color:var(--ink);
+}
+
+/* ---------- SETUP：選第幾組 ---------- */
+.groups{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:.7rem;
+}
+.gbtn{
+  min-height:4.6rem;                 /* 遠大於 44px 的可點擊標準，現場手會抖 */
+  font-family:inherit;font-size:1.6rem;font-weight:900;
+  color:var(--ink);
+  background:#fff;border:.14rem solid rgba(122,85,38,.24);
+  border-radius:1rem;box-shadow:0 .22rem 0 rgba(90,52,18,.1);
+  cursor:pointer;
+}
+.gbtn:active{transform:translateY(.2rem);box-shadow:none;}
+.gbtn.is-on{
+  background:linear-gradient(135deg,var(--amber),var(--gold));
+  color:#fff;border-color:transparent;
+}
+body.dark .gbtn{background:rgba(255,255,255,.07);color:var(--ink);}
+
+/* ---------- LEVEL：挑難度 ---------- */
+.lvs{display:grid;gap:.6rem;}
+.lv{
+  display:flex;align-items:center;gap:.8rem;text-align:left;
+  padding:.8rem .9rem;border-radius:1rem;cursor:pointer;
+  background:#fff;border:.14rem solid rgba(122,85,38,.2);
+  font-family:inherit;color:var(--ink);
+  box-shadow:0 .22rem 0 rgba(90,52,18,.1);
+}
+.lv:active{transform:translateY(.2rem);box-shadow:none;}
+.lv.is-on{border-color:var(--teal);background:rgba(14,140,143,.1);}
+body.dark .lv{background:rgba(255,255,255,.07);}
+.lv__e{font-size:1.9rem;line-height:1.3;}
+.lv__b{flex:1;min-width:0;}
+.lv__n{font-size:1.05rem;font-weight:900;}
+.lv__d{font-size:.8rem;color:var(--ink-2);line-height:1.45;}
+.lv__c{
+  width:1.5rem;height:1.5rem;flex:none;border-radius:.45rem;
+  border:.14rem solid rgba(122,85,38,.35);
+  display:grid;place-items:center;font-size:.95rem;color:#fff;
+}
+.lv.is-on .lv__c{background:var(--teal);border-color:var(--teal);}
+
+.toggle{
+  display:flex;align-items:center;gap:.6rem;
+  font-size:.85rem;color:var(--ink-2);cursor:pointer;
+}
+.toggle input{width:1.15rem;height:1.15rem;accent-color:var(--teal);}
+
+/* ---------- CARD：出題 ---------- */
+.term{
+  font-size:clamp(2.2rem, 11vw, 4rem);
+  font-weight:900;line-height:1.25;letter-spacing:.02em;
+  text-align:center;
+  word-break:auto-phrase;          /* 支援的瀏覽器會照詞組斷行，中文長題的救星 */
+  /* 不沿用投影端那條 #F2A72C 起頭的漸層：手機上短題只取樣得到漸層開頭，
+     淡橘在米色紙上只有 1.9:1，拿在手上根本看不清楚。這裡從火橘起跳。 */
+  background:linear-gradient(150deg,#E2621C 0%,#C4453B 55%,#93302B 100%);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 .08rem 0 rgba(255,255,255,.7));
+  animation:pop .3s ease-out;
+}
+.term--long{font-size:clamp(1.7rem, 7.5vw, 2.6rem);}
+.term--demo{background:linear-gradient(150deg,#7DBB3A 0%,#0E8C8F 60%,#12758F 100%);
+  -webkit-background-clip:text;background-clip:text;}
+body.dark .term{filter:none;}
+
+@keyframes pop{
+  from{transform:scale(.9);opacity:0;}
+  to{transform:scale(1);opacity:1;}
+}
+
+.bar{
+  height:.3rem;border-radius:999px;background:rgba(122,85,38,.18);overflow:hidden;
+}
+.bar__f{height:100%;background:var(--teal);transition:width .3s linear;}
+.bar__f.low{background:var(--flame);}
+
+/* ---------- 拇指區 ----------
+   上下排、中間留空。左右並排在單手操作下誤觸率高太多，
+   而且「跳過」刻意放上面、做小顆，遠離拇指的自然落點。 */
+.acts{
+  position:sticky;bottom:0;
+  display:grid;gap:1.4rem;
+  padding:1rem 0 calc(.4rem + env(safe-area-inset-bottom));
+  background:linear-gradient(transparent, var(--paper) 22%);
+}
+.act{
+  font-family:inherit;font-weight:900;letter-spacing:.03em;
+  border:none;border-radius:1.3rem;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;gap:.5rem;
+}
+.act:active{transform:translateY(.18rem);box-shadow:none!important;}
+.act--hit{
+  min-height:4.4rem;font-size:1.35rem;color:#fff;
+  background:linear-gradient(135deg,#12A08F,var(--teal));
+  box-shadow:0 .35rem 0 rgba(14,108,110,.55);
+}
+.act--skip{
+  min-height:3.2rem;font-size:1.05rem;color:var(--ink-2);
+  background:#fff;border:.16rem solid rgba(122,85,38,.3);
+}
+body.dark .act--skip{background:rgba(255,255,255,.07);}
+.act--go{
+  min-height:4rem;font-size:1.25rem;color:#fff;
+  background:linear-gradient(135deg,var(--amber),var(--gold));
+  box-shadow:0 .35rem 0 rgba(180,116,12,.5);
+}
+.act[disabled]{filter:grayscale(.55);opacity:.55;}
+
+/* 揭曉後 1.2 秒才收點擊，擋住從出題頁承接過來的連擊。
+   解鎖交給 JS 加 .is-armed，不要用 animation 做：
+   0s duration 的 animation 不保證會套用 forwards，而且
+   prefers-reduced-motion 會把動畫整個關掉 —— 兩種情況都會把按鈕永遠鎖死。 */
+.view--reveal .acts{pointer-events:none;}
+.view--reveal .acts.is-armed{pointer-events:auto;}
+
+.link{
+  background:none;border:none;font-family:inherit;
+  font-size:.85rem;font-weight:700;color:var(--ink-2);
+  text-decoration:underline;text-underline-offset:.2rem;
+  cursor:pointer;padding:.5rem;
+}
+
+/* ---------- REVEAL ---------- */
+/* 題目本來就置中，其他行跟著置中，整頁才不會看起來歪一邊 */
+.view--reveal .verdict,
+.view--reveal .eyebrow,
+.view--reveal .tiny,
+.view--reveal .hint{text-align:center;}
+
+.verdict{font-size:2.6rem;font-weight:900;line-height:1.2;animation:pop .3s ease-out;}
+.verdict--hit{color:var(--teal);}
+.verdict--skip{color:var(--ink-2);}
+.hint{
+  font-size:.92rem;color:var(--ink-2);line-height:1.55;
+  padding:.65rem .85rem;border-radius:.8rem;
+  background:rgba(122,85,38,.1);
+}
+
+/* ---------- SUMMARY ---------- */
+.log{list-style:none;margin:0;padding:0;display:grid;gap:.4rem;}
+.log li{
+  display:flex;gap:.55rem;align-items:baseline;
+  font-size:1rem;padding:.45rem .7rem;border-radius:.7rem;
+  background:rgba(255,255,255,.75);
+}
+body.dark .log li{background:rgba(255,255,255,.07);}
+.log li.is-skip{opacity:.55;}
+.log__m{flex:none;}
+
+.score{font-size:3.4rem;font-weight:900;line-height:1.1;color:var(--teal);}
+
+/* ---------- 角落狀態 ---------- */
+.wake{font-size:.75rem;color:var(--ink-2);opacity:.7;}

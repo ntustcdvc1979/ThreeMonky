@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>三隻猴子｜投影幕</title>
+<meta name="robots" content="noindex">
+<meta name="description" content="三隻猴子傳話遊戲的投影畫面：規則、大倒數、輪次節奏">
+<link rel="stylesheet" href="assets/theme.css">
+<link rel="stylesheet" href="assets/stage.css">
+</head>
+<body>
+
+<main class="screen" id="screen"></main>
+
+<div class="bar-ui" id="bar">
+  <button data-act="prev">← 上一頁</button>
+  <button data-act="next">下一頁 →</button>
+  <span class="grow" id="where"></span>
+  <button data-act="menu">跳關 Esc</button>
+  <button data-act="full">全螢幕 F</button>
+</div>
+
+<div class="menu" id="menu" hidden>
+  <h2>跳到哪一頁</h2>
+  <ol id="menuList"></ol>
+  <p class="hintline" id="menuKeys"></p>
+</div>
+
+<script src="assets/util.js"></script>
+<script src="assets/terms.js"></script>
+<script src="assets/roles.js"></script>
+<script src="assets/qrcode.js"></script>
+<script src="assets/stage.js"></script>
+</body>
+</html>
