@@ -81,7 +81,7 @@
 
 ## 部署
 
-推上 GitHub 後要去 **Settings → Pages → Source** 選 **GitHub Actions**，之後每次 push 到 `main` 就會自動上線。
+每次 push 到 `main` 就會自動上線。workflow 帶了 `enablement: true`，第一次跑的時候會順手把 repo 的 Pages 打開，不用手動去設定。萬一沒生效（權限被鎖之類），就去 **Settings → Pages → Source** 選 **GitHub Actions**，再重跑一次 Actions。
 
 所有資源都用相對路徑，所以 repo 叫什麼名字都能跑（網址會是 `/<repo 名>/`）。QR 編的網址是從投影端當下的網址推出來的，沒有寫死任何 domain。
 
