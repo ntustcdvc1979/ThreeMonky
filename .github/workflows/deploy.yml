@@ -24,11 +24,10 @@ jobs:
       - uses: actions/checkout@v4
 
       # 純靜態，沒有建置步驟，整個 repo 直接上傳
-      # enablement: 第一次跑的時候順手把 repo 的 Pages 打開，
-      # 省掉去 Settings → Pages 手動選 Source 那一步
+      # 註：這裡不加 enablement: true。它需要 token 有 repo administration
+      # 權限，預設的 GITHUB_TOKEN 沒有，只會換來一個更難懂的錯誤訊息。
+      # Pages 請在 Settings → Pages → Source 選 GitHub Actions，一次就好。
       - uses: actions/configure-pages@v5
-        with:
-          enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
           path: .
