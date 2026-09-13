@@ -13,7 +13,6 @@
   var DECK = window.TM_DECK;
   var ROLES = window.TM_ROLES.ROLES;
   var QR = window.CDVC_QR;
-  var BGM = window.TM_BGM;
 
   /* 連範例題也不想先曝光的話，把這個改成 false */
   var SHOW_DEMO_TERM = true;
@@ -359,20 +358,6 @@
     }
   }
 
-  /** 嗶聲 + 背景音樂一起開關 */
-  function toggleSound() {
-    var on = !U.isMuted();          // 現在有聲 -> 要靜音
-    U.setMuted(on);
-    BGM.setMuted(on);
-    if (!on) { BGM.start(); }
-    paintSound();
-  }
-
-  function paintSound() {
-    var b = $("musicBtn");
-    if (b) { b.textContent = U.isMuted() ? "🔇 已靜音" : "🎵 音樂"; }
-  }
-
   function applyDark(on) {
     document.body.classList.toggle("dark", on);
     try { localStorage.setItem("tm.dark", on ? "1" : "0"); } catch (e) {}
@@ -384,7 +369,6 @@
   document.addEventListener("keydown", function (e) {
     var sc = S[i];
     U.warmAudio();                 // AudioContext 要在使用者手勢之後才能 resume
-    if (!U.isMuted()) { BGM.start(); }
 
     if (e.key === "Escape") { e.preventDefault(); toggleMenu(); return; }
     if (!$("menu").hidden) { return; }
@@ -410,7 +394,7 @@
 
     if (k === "f") { toggleFull(); return; }
     if (k === "c") { applyDark(!document.body.classList.contains("dark")); return; }
-    if (k === "m") { toggleSound(); return; }
+    if (k === "m") { U.setMuted(!U.isMuted()); return; }
 
     if (k === "h") { showQR = !showQR; paintCornerQR(); return; }
 
@@ -445,12 +429,10 @@
     var el = e.target.closest ? e.target.closest("[data-act]") : null;
     if (!el) { return; }
     var a = el.getAttribute("data-act");
-    if (!U.isMuted()) { BGM.start(); }     // 只用滑鼠的主持人也要能把音樂打開
     if (a === "prev") { go(-1); }
     else if (a === "next") { go(1); }
     else if (a === "menu") { toggleMenu(); }
     else if (a === "full") { toggleFull(); }
-    else if (a === "music") { toggleSound(); }
   });
 
   /* ============================================================
@@ -466,7 +448,6 @@
 
   if (S[i].kind === "round") { ticker.arm(S[i].sec); }
   render();
-  paintSound();
 
   // 投影端也註冊，主持人的筆電斷網一樣開得起來
   if ("serviceWorker" in navigator) {

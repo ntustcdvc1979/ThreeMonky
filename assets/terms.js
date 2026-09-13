@@ -20,7 +20,8 @@
    * @typedef {Object} Term
    * @property {string} id    穩定字串鍵。手機存檔認的是 id 不是索引
    * @property {string} t     題目本身
-   * @property {string} [hint] 畫重點。只在揭曉畫面顯示，擋那組吵「這怎麼可能畫得出來」
+   * @property {string} [hint] 畫重點。目前【沒有顯示在任何畫面上】，
+   *                            資料先留著，要恢復的話在 play.js 的 REVEAL 畫面加回去
    */
 
   /** 範例題。不是正式題庫的一部分，只給投影幕示範規則用 */

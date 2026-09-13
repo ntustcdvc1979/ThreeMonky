@@ -9,7 +9,7 @@
 
    CACHE 版號只在要強制清掉所有舊檔時才需要 +1。 */
 
-var CACHE = "tm-v6";   // 手機端文案精簡，舊快取整包丟掉
+var CACHE = "tm-v7";   // 移除背景音樂與畫重點，舊快取整包丟掉
 
 var FILES = [
   "./",
@@ -23,7 +23,6 @@ var FILES = [
   "./assets/roles.js",
   "./assets/deck.js",
   "./assets/qrcode.js",
-  "./assets/bgm.js",
   "./assets/stage.js",
   "./assets/play.js"
 ];

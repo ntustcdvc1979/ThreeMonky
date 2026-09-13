@@ -187,7 +187,7 @@
       "</div>";
   };
 
-  /* ---------- SETUP：選第幾組 ---------- */
+  /* ---------- SETUP：選一個數字 ---------- */
   VIEWS[ST.SETUP] = function () {
     var btns = "";
     for (var g = 1; g <= GROUPS; g++) {
@@ -196,7 +196,7 @@
     return "" +
       '<h1 class="hero">你是 🙊 比劃猴</h1>' +
       '<div class="card">' +
-        '<p class="tiny" style="margin-bottom:.6rem"><b>你們是第幾組？</b></p>' +
+        '<p class="tiny" style="margin-bottom:.6rem"><b>選擇喜歡的數字</b></p>' +
         '<div class="groups">' + btns + "</div>" +
       "</div>" +
       '<div class="spacer"></div>' +
@@ -209,10 +209,10 @@
   VIEWS[ST.READY] = function () {
     return "" +
       '<div class="row row--between">' +
-        '<span class="pill">第 ' + app.group + " 組</span>" +
+        '<span class="pill">數字 ' + app.group + "</span>" +
         '<span class="pill">' + roundLabel(app.round) + "</span>" +
       "</div>" +
-      '<h1 class="hero">' + (isBonus(app.round) ? "加碼題，拚了" : "準備好就開始") + "</h1>" +
+      '<h1 class="hero">' + (isBonus(app.round) ? "加碼題，拚了" : "靜待主持人開始") + "</h1>" +
       // 只有自己計時的時候才需要講幾分鐘；其他規則投影幕上都有，不重講
       (app.selfTimer
         ? '<p class="lede">倒數 ' + fmtMin(DEFAULT_SEC) + "</p>"
@@ -257,7 +257,6 @@
         (hit ? "✅ 答對了" : "⏭ 沒猜到") + "</div>" +
       '<p class="eyebrow">答案是</p>' +
       '<div class="term' + (t.t.length > 8 ? " term--long" : "") + '">' + esc(t.t) + "</div>" +
-      (t.hint ? '<p class="hint">畫重點：' + esc(t.hint) + "</p>" : "") +
       '<div class="spacer"></div>' +
       '<p class="tiny">' + roundLabel(app.round) + "結束　·　累計答對 " + app.hit + " 題</p>" +
       '<div class="acts">' + revealActs() + "</div>";
@@ -294,7 +293,7 @@
     }).join("");
 
     return "" +
-      '<p class="eyebrow">第 ' + app.group + " 組　全部結束</p>" +
+      '<p class="eyebrow">數字 ' + app.group + "　全部結束</p>" +
       '<div class="score">答對 ' + app.hit + " / " + app.log.length + " 題</div>" +
       (items ? '<ul class="log">' + items + "</ul>" : '<p class="tiny">這場沒出過題。</p>') +
       '<div class="spacer"></div>' +
