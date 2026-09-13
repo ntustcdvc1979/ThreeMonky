@@ -169,10 +169,6 @@
     }).join("") + "</div>";
   }
 
-  function themePill(th) {
-    return '<span class="pill">' + esc(th.name) + "</span>";
-  }
-
   function timerToggle() {
     return '<label class="toggle">' +
       '<input type="checkbox" data-act="selfTimer"' + (app.selfTimer ? " checked" : "") + ">" +
@@ -219,14 +215,12 @@
 
   /* ---------- READY：待命 ---------- */
   VIEWS[ST.READY] = function () {
-    var th = DECK.themeAt(THEMES, app.round);
     return "" +
       '<div class="row row--between">' +
         '<span class="pill">第 ' + app.group + " 組</span>" +
         '<span class="pill">第 ' + app.round + " / " + ROUNDS + " 輪</span>" +
       "</div>" +
-      '<p class="eyebrow">這一輪的主題</p>' +
-      '<h1 class="hero">' + esc(th.name) + "</h1>" +
+      '<h1 class="hero">準備好就開始</h1>' +
       '<p class="lede">' + (app.selfTimer
         ? "按下去之後會開始倒數 " + fmtMin(DEFAULT_SEC) + "。"
         : "看投影幕上的大鐘，主持人喊開始你再按。") + "</p>" +
@@ -249,7 +243,6 @@
     return "" +
       '<div class="row row--between">' +
         '<span class="pill">第 ' + app.round + " / " + ROUNDS + " 輪</span>" +
-        themePill(app.theme) +
         '<span class="pill">累計 ✅ ' + app.hit + "</span>" +
       "</div>" +
       (app.selfTimer ? '<div class="bar"><div class="bar__f" id="bar"></div></div>' : "") +
@@ -274,7 +267,7 @@
       '<div class="spacer"></div>' +
       '<div class="verdict verdict--' + (hit ? "hit" : "skip") + '">' +
         (hit ? "✅ 答對了" : "⏭ 沒猜到") + "</div>" +
-      '<p class="eyebrow">' + esc(app.theme.name) + "　答案是</p>" +
+      '<p class="eyebrow">答案是</p>' +
       '<div class="term' + (t.t.length > 8 ? " term--long" : "") + '">' + esc(t.t) + "</div>" +
       (t.hint ? '<p class="hint">畫重點：' + esc(t.hint) + "</p>" : "") +
       '<div class="spacer"></div>' +
@@ -298,7 +291,7 @@
     var items = app.log.map(function (e) {
       return '<li class="' + (e.r === "hit" ? "is-hit" : "is-skip") + '">' +
         '<span class="log__m" aria-hidden="true">' + (e.r === "hit" ? "✅" : "⏭") + "</span>" +
-        "<span><b>" + esc(e.theme) + "</b>　" + esc(e.t) + "</span></li>";
+        "<span>第 " + e.round + " 輪　" + esc(e.t) + "</span></li>";
     }).join("");
 
     return "" +

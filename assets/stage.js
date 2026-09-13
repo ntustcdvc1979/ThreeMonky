@@ -193,8 +193,7 @@
         esc(count) + "</div>";
     }
     return "" +
-      '<p class="eyebrow">第 ' + sc.n + " / " + THEMES.length + " 輪　這一輪的主題</p>" +
-      '<h1 class="big theme">' + esc(sc.theme.name) + "</h1>" +
+      '<p class="eyebrow">第 ' + sc.n + " / " + THEMES.length + " 輪</p>" +
       '<div class="timer" id="clock">0:00<small>準備</small></div>' +
       roleBar();
   };
@@ -205,11 +204,9 @@
   };
 
   VIEWS.timeup = function () {
-    var th = DECK.themeAt(THEMES, S[i].n);
     return "" +
-      '<p class="eyebrow">' + esc(th.name) + "</p>" +
       '<div class="slam">時間到 ✋</div>' +
-      '<p class="lede">請 🙈 猜題猴睜眼。<br>請分享你的曠世巨作</p>';
+      '<p class="lede">請 🙈 猜題猴睜眼<br>並分享你的曠世巨作</p>';
   };
 
   AFTER.timeup = function () {
@@ -220,10 +217,7 @@
   VIEWS.finale = function () {
     return "" +
       '<p class="eyebrow">三隻猴子</p>' +
-      '<h1 class="huge">話傳到最後<br>剩下多少？</h1>' +
-      '<p class="emoji" aria-hidden="true">🙊 🙉 🙈</p>' +
-      '<p class="lede">看得到的、聽得到的、說得出口的，中間都會掉一點東西。<br>' +
-        "所以聽人講話的時候，要多問一句。</p>";
+      '<p class="emoji" aria-hidden="true">🙊 🙉 🙈</p>';
   };
 
   /* ============================================================

@@ -34,7 +34,7 @@
       ]
     },
     {
-      id: "etiquette", name: "生活禮節",
+      id: "etiquette", name: "佛歸禮節",
       terms: [
         { id: "b1", t: "打毛巾", hint: "擰毛巾、雙手遞出去" },
         { id: "b2", t: "叩首",   hint: "跪著、額頭碰地" },
