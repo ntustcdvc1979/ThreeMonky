@@ -3,8 +3,7 @@
    沒有音檔 —— 整段是用 Web Audio 即時合成的。這樣 repo 保持零二進位檔，
    也不會踩到授權問題。代價是它是一段會一直繞的簡單循環，不是真正的配樂。
 
-   想換成真的音樂：把檔案放成 assets/bgm.mp3，start() 會優先用它，
-   合成的那套自動退場。不用改任何一行程式。
+   要換成真的音樂，改下面那個 FILE 常數就好。
 
    音量壓得很低（0.16），台上講話一定蓋得過它。 */
 (function (global) {
@@ -12,7 +11,11 @@
 
   var U = global.TM_UTIL;
 
-  var FILE = "assets/bgm.mp3";   // 有這個檔就用它，沒有就用合成的
+  /* 想換成真的音樂：把音檔放進 assets/，然後把這行改成它的路徑
+     （例如 "assets/bgm.mp3"），合成的那套就會自動退場。
+     預設是 null —— 不去猜檔案在不在，免得每次開頁都打一個註定 404 的請求。
+     記得也把檔名加進 sw.js 的快取清單，離線才播得出來。 */
+  var FILE = null;
   var VOL = 0.16;
 
   var A = null;        // AudioContext（跟嗶聲共用）
@@ -134,9 +137,10 @@
     return true;
   }
 
-  /** 有 assets/bgm.mp3 就用它，沒有就回 false 走合成 */
+  /** 設了 FILE 就用音檔，沒設或播不起來就回 false 走合成 */
   function tryFile() {
-    if (el) { return true; }
+    if (!FILE) { return Promise.resolve(false); }
+    if (el) { return Promise.resolve(true); }
     var a = new Audio(FILE);
     a.loop = true;
     a.preload = "auto";

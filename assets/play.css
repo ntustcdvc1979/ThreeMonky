@@ -203,5 +203,3 @@ body.dark .log li{background:rgba(255,255,255,.07);}
 
 .score{font-size:3.4rem;font-weight:900;line-height:1.1;color:var(--teal);}
 
-/* ---------- 角落狀態 ---------- */
-.wake{font-size:.75rem;color:var(--ink-2);opacity:.7;}
