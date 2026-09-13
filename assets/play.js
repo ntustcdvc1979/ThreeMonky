@@ -3,7 +3,10 @@
    這一端【完全不跟投影端通訊】：題庫打包在 terms.js 裡，
    各組自己抽題、自己揭曉。全場共同的節奏由投影幕的大鐘負責，
    所以這裡預設不計時 —— 比劃猴晚幾秒按「開始」只是自己少玩幾秒，
-   不會讓整組的結束時間跟別組歪掉。 */
+   不會讓整組的結束時間跟別組歪掉。
+
+   一輪 = 一個主題 = 一題。輪次由這支自己數，
+   只要跟著投影幕走，就會跟全場在同一個主題上。 */
 (function () {
   "use strict";
 
@@ -13,32 +16,30 @@
   var TERMS = window.TM_TERMS;
   var ROLES = window.TM_ROLES.ROLES;
 
-  var GROUPS = 12;          // 組號按鈕做幾顆，也是發牌分流的分母
-  var KEY = "tm.play.v1";
-  var DEFAULT_SEC = 150;    // 只有「自己計時」打開時才用得到
+  var THEMES = TERMS.THEMES;
+  var ROUNDS = THEMES.length;      // 主題數就是輪數
+  var GROUPS = 12;                 // 組號按鈕做幾顆
+  var KEY = "tm.play.v2";          // v1 是舊的難度制存檔，格式不相容
+  var DEFAULT_SEC = 90;            // 只有「自己計時」打開時才用得到
 
   var ST = {
-    RESUME: "resume", SETUP: "setup", LEVEL: "level",
+    RESUME: "resume", SETUP: "setup",
     READY: "ready", CARD: "card", REVEAL: "reveal", SUMMARY: "summary"
   };
 
   var app = {
     st: ST.SETUP,
     group: null,
-    levels: [1, 2],
     selfTimer: false,
     seed: 0,
-    at: 0,
     round: 1,
-    cur: null,
-    result: null,      // "hit" | "skip"
-    hit: 0, skip: 0,
-    log: [],           // 本輪出過的題 [{t, r}]
-    totalHit: 0,
-    exhausted: false   // 整包題目發完了
+    cur: null,         // 這一輪的題 {id,t,hint}
+    theme: null,
+    result: null,      // "hit" | "miss"
+    hit: 0,
+    log: []            // 整場的紀錄 [{round, theme, t, r}]
   };
 
-  var deck = null;
   var pending = null;  // RESUME 卡片上等著被接受的存檔
   var ticker = null;
 
@@ -51,45 +52,31 @@
     return s ? String(s) : U.dayKey();
   }
 
-  function rebuildDeck() {
-    deck = DECK.create({
-      terms: TERMS.TERMS,
-      levels: app.levels,
-      seed: app.seed,
-      group: app.group,
-      groups: GROUPS,
-      at: app.at
+  /** 這一輪這一組拿到哪一題。純函式，所以存檔只要記 round + group */
+  function pickNow() {
+    return DECK.pick({
+      themes: THEMES, round: app.round, group: app.group, seed: app.seed
     });
-    return deck;
   }
 
-  /** 150 -> "2 分 30 秒"。不能用 Math.round(sec/60)，2.5 分會被講成 3 分鐘 */
+  /** 90 -> "1 分 30 秒"。不能用 Math.round(sec/60)，1.5 分會被講成 2 分鐘 */
   function fmtMin(sec) {
     var m = Math.floor(sec / 60), s = sec % 60;
+    if (!m) { return s + " 秒"; }
     return m + " 分" + (s ? " " + s + " 秒" : "鐘");
   }
 
-  function poolSize(levels) {
-    return TERMS.TERMS.filter(function (t) {
-      return levels.indexOf(t.lv) >= 0;
-    }).length;
-  }
-
   /* ============================================================
-     存檔。只存 seed + 游標，不存整副牌 —— 靠 seed/levels/group
-     就能把一模一樣的順序重建出來。這是用 seeded PRNG 最實際的理由。
-     用 sessionStorage 不用 localStorage：活動結束關掉分頁就自然清空，
-     不會有人隔週打開發現自己卡在第 3 輪。
+     存檔。題目是 round + group + seed 算出來的純函式結果，
+     所以只要記這三個數字就能還原到同一題，不必存題庫。
+     用 sessionStorage 不用 localStorage：活動結束關掉分頁就自然清空。
      ============================================================ */
   function save() {
     try {
       sessionStorage.setItem(KEY, JSON.stringify({
         day: U.dayKey(), seedText: seedText(),
-        st: app.st, group: app.group, levels: app.levels,
-        selfTimer: app.selfTimer, seed: app.seed,
-        at: deck ? deck.at : app.at,
-        round: app.round, hit: app.hit, skip: app.skip,
-        log: app.log, totalHit: app.totalHit,
+        st: app.st, group: app.group, selfTimer: app.selfTimer, seed: app.seed,
+        round: app.round, hit: app.hit, log: app.log,
         curId: app.cur ? app.cur.id : null, result: app.result
       }));
     } catch (e) { /* 無痕模式會丟例外，不值得為此中斷遊戲 */ }
@@ -99,7 +86,7 @@
     try {
       var s = JSON.parse(sessionStorage.getItem(KEY) || "null");
       if (!s || s.day !== U.dayKey() || s.seedText !== seedText()) { return null; }
-      if (s.st === ST.SETUP || s.st === ST.LEVEL) { return null; }  // 還沒開始，沒什麼好還原
+      if (s.st === ST.SETUP) { return null; }   // 還沒開始，沒什麼好還原
       return s;
     } catch (e) { return null; }
   }
@@ -116,7 +103,6 @@
       }
     }
     app.st = next;
-    if (deck) { app.at = deck.at; }
     save();
     render();
   }
@@ -173,7 +159,7 @@
     el.className = "view view--" + app.st;
     el.innerHTML = VIEWS[app.st]();
     document.body.classList.toggle("is-hit", app.st === ST.REVEAL && app.result === "hit");
-    document.body.classList.toggle("is-skip", app.st === ST.REVEAL && app.result === "skip");
+    document.body.classList.toggle("is-skip", app.st === ST.REVEAL && app.result === "miss");
     if (AFTER[app.st]) { AFTER[app.st](); }
   }
 
@@ -183,15 +169,25 @@
     }).join("") + "</div>";
   }
 
+  function themePill(th) {
+    return '<span class="pill">' + th.emoji + " " + esc(th.name) + "</span>";
+  }
+
+  function timerToggle() {
+    return '<label class="toggle">' +
+      '<input type="checkbox" data-act="selfTimer"' + (app.selfTimer ? " checked" : "") + ">" +
+      "<span>自己計時（看不到投影幕時才打開）</span>" +
+      "</label>";
+  }
+
   /* ---------- RESUME ---------- */
   VIEWS[ST.RESUME] = function () {
     var s = pending;
-    var where = "第 " + s.round + " 輪、答對 " + s.hit + " 題";
     return "" +
       '<p class="eyebrow">剛剛玩到一半</p>' +
       '<h1 class="hero">要接著玩嗎？</h1>' +
-      '<div class="card"><p class="lede">你停在 <b>' + esc(where) + "</b>。" +
-        "接著玩會回到同一副牌、同一題。</p></div>" +
+      '<div class="card"><p class="lede">你停在 <b>第 ' + s.round + " 輪、答對 " +
+        s.hit + " 題</b>。接著玩會回到同一題。</p></div>" +
       '<div class="spacer"></div>' +
       '<div class="acts">' +
         '<button class="act act--skip" data-act="resumeNo">重新開始</button>' +
@@ -211,74 +207,35 @@
       '<p class="lede">這支手機只有你看。另外兩隻猴子不用看螢幕。</p>' +
       '<div class="card">' +
         '<p class="tiny" style="margin-bottom:.6rem">' +
-          "<b>你們是第幾組？</b>　選對組號，才不會跟隔壁組比到一樣的題目。</p>" +
+          "<b>你們是第幾組？</b>　組號決定你會拿到哪一題，選錯就會跟別組比到一樣的。</p>" +
         '<div class="groups">' + btns + "</div>" +
       "</div>" +
       '<div class="spacer"></div>' +
       roleBar() +
       '<div style="text-align:center">' +
-        '<button class="link" data-act="noGroup">沒分組，隨便給我題目</button>' +
-      "</div>";
-  };
-
-  /* ---------- LEVEL：挑難度 ---------- */
-  VIEWS[ST.LEVEL] = function () {
-    var n = poolSize(app.levels);
-    var stride = app.group ? Math.floor(n / GROUPS) : 0;
-    var cards = TERMS.LEVELS.map(function (L) {
-      var on = app.levels.indexOf(L.lv) >= 0;
-      return '<button class="lv' + (on ? " is-on" : "") + '" data-act="lv" data-lv="' + L.lv + '"' +
-        ' aria-pressed="' + on + '">' +
-        '<span class="lv__e" aria-hidden="true">' + L.emoji + "</span>" +
-        '<span class="lv__b"><span class="lv__n">' + esc(L.name) + "</span><br>" +
-        '<span class="lv__d">' + esc(L.desc) + "</span></span>" +
-        '<span class="lv__c" aria-hidden="true">' + (on ? "✓" : "") + "</span>" +
-        "</button>";
-    }).join("");
-
-    var warn = "";
-    if (n === 0) {
-      warn = '<p class="note">至少要選一個難度。</p>';
-    } else if (app.group && stride < 3) {
-      warn = '<p class="note">這包只有 ' + n + " 題，分給 " + GROUPS +
-        " 組會不夠用，隔壁組很可能跟你比到一樣的。建議再多勾一個難度。</p>";
-    }
-
-    return "" +
-      '<p class="eyebrow">' + (app.group ? "第 " + app.group + " 組" : "沒分組") + "</p>" +
-      '<h1 class="hero">要玩哪種題目？</h1>' +
-      '<p class="lede">可以複選。這包有 <b>' + n + "</b> 題。</p>" +
-      '<div class="lvs">' + cards + "</div>" +
-      warn +
-      '<label class="toggle">' +
-        '<input type="checkbox" data-act="selfTimer"' + (app.selfTimer ? " checked" : "") + ">" +
-        "<span>自己計時（分在不同教室、看不到投影幕時才打開）</span>" +
-      "</label>" +
-      '<div class="spacer"></div>' +
-      '<div class="acts">' +
-        '<button class="act act--go" data-act="toReady"' + (n === 0 ? " disabled" : "") +
-          ">準備好了 ➜</button>" +
+        '<button class="link" data-act="randGroup">不知道，隨便給我一個</button>' +
       "</div>";
   };
 
   /* ---------- READY：待命 ---------- */
   VIEWS[ST.READY] = function () {
+    var th = DECK.themeAt(THEMES, app.round);
     return "" +
       '<div class="row row--between">' +
-        '<span class="pill">' + (app.group ? "第 " + app.group + " 組" : "沒分組") + "</span>" +
-        '<span class="pill">局號 ' + esc(deck.code) + "</span>" +
+        '<span class="pill">第 ' + app.group + " 組</span>" +
+        '<span class="pill">第 ' + app.round + " / " + ROUNDS + " 輪</span>" +
       "</div>" +
-      '<p class="eyebrow">第 ' + app.round + " 輪</p>" +
-      '<h1 class="hero">準備好就開始</h1>' +
+      '<p class="eyebrow">這一輪的主題</p>' +
+      '<h1 class="hero">' + th.emoji + " " + esc(th.name) + "</h1>" +
       '<p class="lede">' + (app.selfTimer
         ? "按下去之後會開始倒數 " + fmtMin(DEFAULT_SEC) + "。"
         : "看投影幕上的大鐘，主持人喊開始你再按。") + "</p>" +
       '<div class="card"><p class="tiny">' +
-        "🙊 你面對手機比動作　🙉 背對你、只能講　🙈 閉眼、把聽到的畫在紙上" +
+        "🙊 你看手機比動作　🙉 看不到題目、只能講　🙈 全程閉眼、把聽到的畫在紙上" +
       "</p></div>" +
+      timerToggle() +
       '<div class="spacer"></div>' +
       wakeNote() +
-      '<p class="tiny">牌堆還有 ' + deck.remaining() + " 題</p>" +
       '<div class="acts">' +
         '<button class="act act--hit" data-act="start">開始比 🙊</button>' +
       "</div>";
@@ -286,53 +243,45 @@
 
   AFTER[ST.READY] = function () { paintWake(); };
 
-  /* ---------- CARD：出題 ---------- */
+  /* ---------- CARD：這一輪的題 ---------- */
   VIEWS[ST.CARD] = function () {
     var t = app.cur;
-    var lv = TERMS.LEVELS.filter(function (L) { return L.lv === t.lv; })[0];
     return "" +
       '<div class="row row--between">' +
-        '<span class="pill">第 ' + (app.hit + app.skip + 1) + " 題</span>" +
-        (lv ? '<span class="pill">' + lv.emoji + " " + esc(lv.name) + "</span>" : "") +
-        '<span class="pill">本輪 ✅ ' + app.hit + "</span>" +
+        '<span class="pill">第 ' + app.round + " / " + ROUNDS + " 輪</span>" +
+        themePill(app.theme) +
+        '<span class="pill">累計 ✅ ' + app.hit + "</span>" +
       "</div>" +
       (app.selfTimer ? '<div class="bar"><div class="bar__f" id="bar"></div></div>' : "") +
-      /* 主持人喊「停」的時候，比劃猴常常正卡在一張還沒判定的題上。
-         給一個出口，但擺在畫面最上方、遠離拇指區，免得比到一半誤觸。 */
-      '<div style="text-align:right;margin-top:-.3rem">' +
-        '<button class="link" data-act="endRound">本輪結束</button>' +
-      "</div>" +
       '<div class="spacer"></div>' +
       '<div class="term' + (t.t.length > 8 ? " term--long" : "") + '">' + esc(t.t) + "</div>" +
       '<div class="spacer"></div>' +
       '<p class="wake" id="wake"></p>' +
       '<div class="acts">' +
-        '<button class="act act--skip" data-act="skip">跳過 ⏭</button>' +
+        '<button class="act act--skip" data-act="miss">沒猜到 ⏭</button>' +
         '<button class="act act--hit" data-act="hit">答對了 ✅</button>' +
       "</div>";
   };
 
   AFTER[ST.CARD] = function () { paintWake(); paintBar(); };
 
-  /* ---------- REVEAL：答案在這組自己的手機上炸出來 ---------- */
+  /* ---------- REVEAL：答案在這組自己的手機上炸出來，同時也是本輪結束 ---------- */
   VIEWS[ST.REVEAL] = function () {
     var t = app.cur;
     var hit = app.result === "hit";
-    var last = !deck.peek();
+    var last = app.round >= ROUNDS;
     return "" +
       '<div class="spacer"></div>' +
       '<div class="verdict verdict--' + (hit ? "hit" : "skip") + '">' +
-        (hit ? "✅ 答對了" : "⏭ 跳過") + "</div>" +
-      '<p class="eyebrow">題目是</p>' +
+        (hit ? "✅ 答對了" : "⏭ 沒猜到") + "</div>" +
+      '<p class="eyebrow">' + app.theme.emoji + " " + esc(app.theme.name) + "　答案是</p>" +
       '<div class="term' + (t.t.length > 8 ? " term--long" : "") + '">' + esc(t.t) + "</div>" +
       (t.hint ? '<p class="hint">畫重點：' + esc(t.hint) + "</p>" : "") +
       '<div class="spacer"></div>' +
-      '<p class="tiny">本輪 ✅ ' + app.hit + "　⏭ " + app.skip +
-        (last ? "　·　題目發完了" : "") + "</p>" +
+      '<p class="tiny">第 ' + app.round + " / " + ROUNDS + " 輪結束　·　累計答對 " + app.hit + " 題</p>" +
       '<div class="acts">' +
-        '<button class="act act--skip" data-act="endRound">本輪結束</button>' +
-        '<button class="act act--go" data-act="nextTerm"' + (last ? " disabled" : "") +
-          ">下一題 ➜</button>" +
+        '<button class="act act--go" data-act="' + (last ? "toSummary" : "nextRound") + '">' +
+          (last ? "看總結 ➜" : "下一輪 ➜") + "</button>" +
       "</div>";
   };
 
@@ -344,28 +293,22 @@
     setTimeout(function () { acts.classList.add("is-armed"); }, 1200);
   };
 
-  /* ---------- SUMMARY ---------- */
+  /* ---------- SUMMARY：整場結算 ---------- */
   VIEWS[ST.SUMMARY] = function () {
     var items = app.log.map(function (e) {
       return '<li class="' + (e.r === "hit" ? "is-hit" : "is-skip") + '">' +
         '<span class="log__m" aria-hidden="true">' + (e.r === "hit" ? "✅" : "⏭") + "</span>" +
-        "<span>" + esc(e.t) + "</span></li>";
+        "<span><b>" + esc(e.theme) + "</b>　" + esc(e.t) + "</span></li>";
     }).join("");
 
     return "" +
-      '<p class="eyebrow">第 ' + app.round + " 輪結束</p>" +
-      '<div class="score">答對 ' + app.hit + " 題</div>" +
-      '<p class="lede">整場累計 ' + app.totalHit + " 題。看看猜題猴畫了什麼。</p>" +
-      (app.exhausted ? '<p class="note">題庫發完了。要再玩就換個難度。</p>' : "") +
-      (items ? '<ul class="log">' + items + "</ul>" : '<p class="tiny">這輪沒出過題。</p>') +
+      '<p class="eyebrow">第 ' + app.group + " 組　全部結束</p>" +
+      '<div class="score">答對 ' + app.hit + " / " + app.log.length + " 題</div>" +
+      '<p class="lede">看看猜題猴畫了什麼。</p>' +
+      (items ? '<ul class="log">' + items + "</ul>" : '<p class="tiny">這場沒出過題。</p>') +
       '<div class="spacer"></div>' +
       '<div style="text-align:center">' +
-        '<button class="link" data-act="toLevel">換難度</button>' +
-        '<button class="link" data-act="toSetup">重新設定</button>' +
-      "</div>" +
-      '<div class="acts">' +
-        '<button class="act act--go" data-act="nextRound"' +
-          (deck.peek() ? "" : " disabled") + ">下一輪 ➜</button>" +
+        '<button class="link" data-act="toSetup">重新開始</button>' +
       "</div>";
   };
 
@@ -387,7 +330,7 @@
       paintBar();
       if (left === 0 && app.st === ST.CARD) {
         U.beep(220, 0.7);
-        go(ST.SUMMARY);
+        judge("miss");
       }
     });
     return ticker;
@@ -396,82 +339,55 @@
   /* ============================================================
      動作
      ============================================================ */
-  function drawNext() {
-    var t = deck.next();
-    if (!t) {
-      go(ST.SUMMARY, { exhausted: true });
-      return;
-    }
-    go(ST.CARD, { cur: t, result: null });
-  }
-
   function judge(result) {
-    app.log.push({ t: app.cur.t, r: result });
-    if (result === "hit") { app.hit++; app.totalHit++; U.beep(880, 0.09); }
-    else { app.skip++; U.beep(330, 0.09); }
+    if (ticker) { ticker.stop(); }
+    app.log.push({
+      round: app.round, theme: app.theme.name, t: app.cur.t, r: result
+    });
+    if (result === "hit") { app.hit++; U.beep(880, 0.09); }
+    else { U.beep(330, 0.09); }
     go(ST.REVEAL, { result: result });
   }
 
   var ACTS = {
     resumeYes: function () {
       var s = pending;
-      app.group = s.group; app.levels = s.levels; app.selfTimer = s.selfTimer;
-      app.seed = s.seed; app.at = s.at; app.round = s.round;
-      app.hit = s.hit; app.skip = s.skip; app.log = s.log || [];
-      app.totalHit = s.totalHit; app.result = s.result;
-      rebuildDeck();
-      // curId 存的是題目 id 不是索引，就算之後題庫插了新題也還原得回來
-      if (s.curId) {
-        app.cur = deck.order.filter(function (t) { return t.id === s.curId; })[0] || null;
-      }
+      app.group = s.group; app.selfTimer = s.selfTimer; app.seed = s.seed;
+      app.round = s.round; app.hit = s.hit; app.log = s.log || [];
+      app.result = s.result;
+      var p = pickNow();
+      app.theme = p.theme;
+      app.cur = p.term;
       pending = null;
-      if (!app.cur && (s.st === ST.CARD || s.st === ST.REVEAL)) { go(ST.READY); return; }
       go(s.st);
     },
-    resumeNo: function () { pending = null; clearSaved(); rebuildDeck(); go(ST.SETUP); },
+    resumeNo: function () { pending = null; clearSaved(); go(ST.SETUP); },
 
-    group: function (el) { go(ST.LEVEL, { group: +el.getAttribute("data-g") }); },
-    noGroup: function () { go(ST.LEVEL, { group: null }); },
-
-    lv: function (el) {
-      var lv = +el.getAttribute("data-lv");
-      var i = app.levels.indexOf(lv);
-      if (i >= 0) { app.levels.splice(i, 1); }
-      else { app.levels.push(lv); app.levels.sort(); }
-      save();
-      render();
+    group: function (el) { go(ST.READY, { group: +el.getAttribute("data-g"), round: 1, hit: 0, log: [] }); },
+    randGroup: function () {
+      go(ST.READY, {
+        group: 1 + Math.floor(Math.random() * GROUPS), round: 1, hit: 0, log: []
+      });
     },
+
     selfTimer: function (el) { app.selfTimer = el.checked; save(); render(); },
-
-    toReady: function () {
-      app.at = 0;
-      rebuildDeck();
-      go(ST.READY, { round: 1, hit: 0, skip: 0, log: [], totalHit: 0, exhausted: false });
-    },
 
     start: function () {
       keepAwake().then(paintWake);
       U.warmAudio();
       if (app.selfTimer) { ensureTicker().start(DEFAULT_SEC); }
-      drawNext();
+      var p = pickNow();
+      go(ST.CARD, { cur: p.term, theme: p.theme, result: null });
     },
 
     hit: function () { judge("hit"); },
-    skip: function () { judge("skip"); },
-    nextTerm: drawNext,
-
-    endRound: function () {
-      if (ticker) { ticker.stop(); }
-      go(ST.SUMMARY);
-    },
+    miss: function () { judge("miss"); },
 
     nextRound: function () {
-      go(ST.READY, {
-        round: app.round + 1, hit: 0, skip: 0, log: [], result: null, cur: null
-      });
+      go(ST.READY, { round: app.round + 1, result: null, cur: null });
     },
-    toLevel: function () { go(ST.LEVEL); },
-    toSetup: function () { clearSaved(); go(ST.SETUP); }
+    toSummary: function () { go(ST.SUMMARY); },
+    toSetup: function () { clearSaved(); go(ST.SETUP, { round: 1, hit: 0, log: [], cur: null }); }
   };
 
   $("view").addEventListener("click", function (e) {
@@ -494,8 +410,6 @@
      ============================================================ */
   app.seed = DECK.hashSeed(seedText())();
   pending = loadSaved();
-
-  rebuildDeck();   // 先給一副，讓 VIEWS 不用到處判斷 deck 是不是 null
   if (pending) { app.st = ST.RESUME; }
   render();
 

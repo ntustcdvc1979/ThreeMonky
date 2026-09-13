@@ -87,12 +87,12 @@ body.dark .huge{filter:none;}
 
 /* ---------- 封面 ---------- */
 .cover{
-  display:grid;grid-template-columns:1.25fr .75fr;gap:3.5rem;align-items:center;
+  display:grid;grid-template-columns:1fr 1fr;gap:3rem;align-items:center;
   width:100%;max-width:88rem;text-align:left;
 }
 .cover__qr{text-align:center;}
 .cover__qr .qr{
-  width:min(26rem,30vw);margin:0 auto;
+  width:min(34rem,38vw);margin:0 auto;
   border:.35rem solid #fff;
   box-shadow:0 .5rem 1.4rem rgba(90,52,18,.28);
 }
@@ -108,10 +108,10 @@ body.dark .huge{filter:none;}
 /* 正式輪次角落的小 QR，給遲到的組。按 H 收起來 */
 .qr-corner{
   position:fixed;top:1.4rem;right:1.4rem;z-index:3;
-  width:8rem;text-align:center;
+  width:11rem;text-align:center;
 }
 .qr-corner .qr{border:.2rem solid #fff;box-shadow:0 .3rem .8rem rgba(90,52,18,.25);}
-.qr-corner p{margin:.3rem 0 0;font-size:.75rem;font-weight:900;color:var(--ink-2);}
+.qr-corner p{margin:.35rem 0 0;font-size:.9rem;font-weight:900;color:var(--ink-2);}
 
 /* ---------- 三隻猴子 ---------- */
 .roles{
@@ -128,7 +128,7 @@ body.dark .huge{filter:none;}
 .role__r{font-size:1.25rem;line-height:1.55;color:var(--ink-2);}
 .role__t{margin-top:.6rem;font-size:1rem;color:var(--ink-2);opacity:.8;}
 
-/* 站位：🙊 →(看動作)→ 🙉 →(聽聲音)→ 🙈 →(畫)→ 📄 */
+/* 傳話鏈：🙊 →(看動作)→ 🙉 →(聽聲音)→ 🙈 →(畫)→ 📄 */
 .lineup{
   display:flex;align-items:center;justify-content:center;
   gap:1rem;flex-wrap:wrap;margin:2rem 0 1rem;
@@ -176,6 +176,9 @@ body.dark .term{filter:none;}
 }
 .step b{display:block;font-size:2.6rem;line-height:1.2;color:var(--flame);}
 .step span{display:block;margin-top:.4rem;font-size:1.5rem;font-weight:900;line-height:1.4;}
+
+/* 正式輪的主題。投影幕上唯一「跟題目有關」的資訊，全場一樣所以不算洩題 */
+.big.theme{margin:.2rem 0 .4rem;color:var(--flame);letter-spacing:.04em;}
 
 /* ---------- 大倒數 ----------
    這是投影端的主角，字級遠大於 orientation 原本的 5.5rem */

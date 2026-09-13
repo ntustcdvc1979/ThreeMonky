@@ -9,7 +9,7 @@
 
    CACHE 版號只在要強制清掉所有舊檔時才需要 +1。 */
 
-var CACHE = "tm-v1";
+var CACHE = "tm-v2";   // 題庫從難度制改成主題制，舊快取整包丟掉
 
 var FILES = [
   "./",

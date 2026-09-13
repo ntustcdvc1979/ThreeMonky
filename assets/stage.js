@@ -1,7 +1,7 @@
 /* 投影端。全場的節奏棒。
 
    這一端【不知道任何一組現在在比什麼題】—— 各組自己抽題、自己揭曉，
-   所以這裡只負責：規則、站位、範例題、大倒數、時間到的 hype。
+   所以這裡只負責：規則、傳話方式、範例題、大倒數、時間到的 hype。
    正式題目一個字都不會出現在投影幕上。 */
 (function () {
   "use strict";
@@ -9,6 +9,8 @@
   var U = window.TM_UTIL;
   var $ = U.$, esc = U.esc;
   var TERMS = window.TM_TERMS;
+  var THEMES = TERMS.THEMES;
+  var DECK = window.TM_DECK;
   var ROLES = window.TM_ROLES.ROLES;
   var QR = window.CDVC_QR;
 
@@ -50,13 +52,16 @@
 
   add({ kind: "cover",   label: "封面・掃 QR" });
   add({ kind: "rules",   label: "三隻猴子是誰" });
-  add({ kind: "lineup",  label: "站位示意" });
+  add({ kind: "lineup",  label: "話怎麼傳" });
   add({ kind: "demo",    label: "範例題：" + TERMS.DEMO.t });
   add({ kind: "handoff", label: "比劃猴拿手機・選組號" });
-  for (var r = 1; r <= 3; r++) {
-    add({ kind: "round",  n: r, sec: (r === 1 ? 150 : 180), label: "第 " + r + " 輪（大倒數）" });
+  // 一輪 = 一個主題 = 一題。主題數就是輪數。
+  THEMES.forEach(function (th, k) {
+    var r = k + 1;
+    add({ kind: "round", n: r, theme: th, sec: (r === 1 ? 120 : 90),
+          label: "第 " + r + " 輪　" + th.emoji + " " + th.name });
     add({ kind: "timeup", n: r, label: "└ 時間到" });
-  }
+  });
   add({ kind: "finale",  label: "結束" });
 
   var i = 0;
@@ -103,7 +108,7 @@
     return "" +
       '<div class="cover">' +
         "<div>" +
-          '<p class="eyebrow">三人一組・一條直線</p>' +
+          '<p class="eyebrow">三個人一組</p>' +
           '<h1 class="huge">三隻猴子</h1>' +
           '<p class="lede">話從第一個人傳到第三個人，還會剩下多少？<br>' +
             "題目只有 <b>🙊 比劃猴</b> 看得到，而答案 <b>不是用講的，是用畫的</b>。</p>" +
@@ -122,7 +127,7 @@
   VIEWS.rules = function () {
     return "" +
       '<h1 class="big">三隻猴子</h1>' +
-      '<p class="lede">三個人一組，站成一直線。題目只有比劃猴看得到，' +
+      '<p class="lede">三個人一組。題目只有比劃猴看得到，' +
         "<b>答案不是用講的，是用畫的</b>。</p>" +
       '<div class="roles">' +
         ROLES.map(function (x) {
@@ -145,7 +150,7 @@
       return '<div class="lineup__a"><b aria-hidden="true">➜</b><span>' + esc(t) + "</span></div>";
     }
     return "" +
-      '<p class="eyebrow">站位</p>' +
+      '<p class="eyebrow">話怎麼傳</p>' +
       '<h1 class="big">' + esc(window.TM_ROLES.LINEUP) + "</h1>" +
       '<div class="lineup">' +
         monkey(ROLES[0]) + arrow("看動作") +
@@ -153,7 +158,8 @@
         monkey(ROLES[2]) + arrow("畫出來") +
         '<div class="lineup__m"><b aria-hidden="true">📄</b><span>答案</span></div>' +
       "</div>" +
-      '<p class="lede">猜題猴全程閉眼背對。旁邊的人可以看，<b>但出聲提示就算那組犯規</b>。</p>';
+      '<p class="lede">站哪裡不重要，只要傳話猴看不到題目、猜題猴閉著眼就行。<br>' +
+        '旁邊的人可以看，<b>但出聲提示就算那組犯規</b>。</p>';
   };
 
   VIEWS.demo = function () {
@@ -171,7 +177,7 @@
     var steps = [
       ["①", "比劃猴掃 QR"],
       ["②", "選你們是第幾組"],
-      ["③", "選難度，然後等我喊開始"]
+      ["③", "等我喊開始再按"]
     ];
     return "" +
       '<p class="eyebrow">每組派一個人當 🙊 比劃猴</p>' +
@@ -181,7 +187,7 @@
           return '<div class="step"><b>' + s[0] + "</b><span>" + esc(s[1]) + "</span></div>";
         }).join("") +
       "</div>" +
-      '<div class="qr" id="qr" style="width:14rem;margin:1.8rem auto 0;border:.3rem solid #fff"></div>' +
+      '<div class="qr" id="qr" style="width:min(22rem,26vw);margin:1.6rem auto 0;border:.3rem solid #fff"></div>' +
       '<p class="cover__url" style="font-size:1.1rem">' + esc(playUrl()) + "</p>";
   };
 
@@ -194,7 +200,8 @@
         esc(count) + "</div>";
     }
     return "" +
-      '<p class="eyebrow">第 ' + sc.n + " 輪</p>" +
+      '<p class="eyebrow">第 ' + sc.n + " / " + THEMES.length + " 輪　這一輪的主題</p>" +
+      '<h1 class="big theme">' + sc.theme.emoji + " " + esc(sc.theme.name) + "</h1>" +
       '<div class="timer" id="clock">0:00<small>準備</small></div>' +
       roleBar();
   };
@@ -205,7 +212,9 @@
   };
 
   VIEWS.timeup = function () {
+    var th = DECK.themeAt(THEMES, S[i].n);
     return "" +
+      '<p class="eyebrow">' + th.emoji + " " + esc(th.name) + "</p>" +
       '<div class="slam">時間到 ✋</div>' +
       '<p class="lede">🙈 猜題猴可以睜眼了。<br>把你畫的舉起來，跟原本的題目對一下。</p>';
   };
@@ -323,8 +332,10 @@
   function addRound() {
     var at = S.length - 1;                       // finale 的位置
     var n = S.filter(function (x) { return x.kind === "round"; }).length + 1;
+    var th = DECK.themeAt(THEMES, n);            // 超過主題數就繞回第一個
     S.splice(at, 0,
-      { kind: "round", n: n, sec: 180, label: "第 " + n + " 輪（大倒數）" },
+      { kind: "round", n: n, theme: th, sec: 90,
+        label: "第 " + n + " 輪　" + th.emoji + " " + th.name },
       { kind: "timeup", n: n, label: "└ 時間到" });
     $("menu").hidden = true;
     jump(at);

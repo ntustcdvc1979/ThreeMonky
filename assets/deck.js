@@ -1,12 +1,21 @@
-/* 發牌。三件事各解一個問題：
+/* 題目分派。
 
-   1. Fisher-Yates 洗整包後依序發  → 同一組內絕不重複出題
-      （每次 Math.random() 抽單題一定會抽到重複的）
-   2. 組號偏移                     → 隔壁組不會同時在比一樣的東西
-   3. seeded PRNG                  → 重整不掉進度：只要存 seed + 游標
-                                     就能重建整個順序，不必存整副牌
+   規則是：一輪一個主題，全場主題一樣，同一主題裡各組拿到不同的那一題。
+   每個主題只有 4 題，所以
 
-   關於 2 能保證到什麼程度，看 create() 上面那段註解。 */
+     slot = ((組號 - 1) + (輪次 - 1)) % 4
+
+   這條式子給了三個性質：
+
+   1. 相鄰組號永遠落在不同 slot → 隔壁桌絕對不會跟你比一樣的
+   2. 會共用同一題的組固定差 4（1&5、2&6、3&7、4&8），永遠不是隔壁
+   3. 加上輪次的偏移，每組每一輪都落在不同 slot，不會四輪都拿同一個位置
+
+   4 組以內完全不撞題；5-8 組會有一對共用，但 pigeonhole 擺在那裡
+   —— 8 組 4 題，一定有兩組拿到同一題，能做的只是讓他們離得夠遠。
+
+   每個主題的 4 題會先用當天的 seed 洗過，所以同一個組號在不同場次
+   拿到的不是同一題。 */
 (function (global) {
   "use strict";
 
@@ -24,7 +33,7 @@
     };
   }
 
-  /** mulberry32 -> [0,1)。週期夠長，狀態只有 32 bits，好存 */
+  /** mulberry32 -> [0,1)。狀態只有 32 bits，好存 */
   function rng(seed) {
     var a = seed >>> 0;
     return function () {
@@ -35,14 +44,7 @@
     };
   }
 
-  function randomSeed() {
-    if (global.crypto && global.crypto.getRandomValues) {
-      return global.crypto.getRandomValues(new Uint32Array(1))[0];
-    }
-    return (Date.now() ^ (Math.random() * 4294967296)) >>> 0;
-  }
-
-  /** Fisher-Yates，就地洗。rand 是 () => [0,1) */
+  /** Fisher-Yates，就地洗 */
   function shuffle(arr, rand) {
     for (var i = arr.length - 1; i > 0; i--) {
       var j = Math.floor(rand() * (i + 1));
@@ -51,67 +53,43 @@
     return arr;
   }
 
-  /**
-   * 建一副牌。所有手機用同一個 seed 洗出同一份順序，
-   * 第 g 組從 offset = (g-1) * stride 開始取。
-   *
-   * 這個機制真正保證的是：第 g 組的第 k 張是 order[((g-1)*stride + k) % n]，
-   * 兩組要同時撞題得滿足 (g'-g)*stride ≡ d (mod n)，d 是兩組的進度差。
-   * 因為 (g'-g)*stride < n，所以【只要任兩組的進度差距小於 stride 題，
-   * 就不可能同時出現同一題】。
-   *
-   * 整場完全不重複是做不到的 —— 12 組 x 3 輪 x 6 題 = 216 次抽牌，
-   * 題庫只有 74 題。但「不同組在不同時間抽到同一題」不影響體驗，
-   * 「隔壁組現在在比一樣的東西」才影響，而後者正是這裡擋掉的。
-   *
-   * 注意 stride 會跟著【篩選後】的池子縮水：74 題 / 12 組 = 6（安全），
-   * 只勾 Lv1 的話 18 / 12 = 1（形同沒保護）。呼叫端要看 deck.stride 提醒使用者。
-   *
-   * @param {{terms:Array, levels:number[], seed:number,
-   *          group:(number|null), groups:number, at:number}} o
-   */
-  function create(o) {
-    var levels = o.levels || [];
-    var pool = (o.terms || []).filter(function (t) {
-      return levels.indexOf(t.lv) >= 0;
-    });
-    var order = shuffle(pool.slice(), rng(o.seed));
-    var n = order.length;
-    var G = Math.max(1, o.groups || 12);
-    var stride = (o.group && n) ? Math.max(1, Math.floor(n / G)) : 0;
-    var offset = (o.group && n) ? ((o.group - 1) * stride) % n : 0;
-    if (offset) { order = order.slice(offset).concat(order.slice(0, offset)); }
+  /** 第 r 輪是哪個主題。超過主題數就繞回去 */
+  function themeAt(themes, round) {
+    return themes[(round - 1) % themes.length];
+  }
 
-    var deck = {
-      order: order,
-      at: o.at || 0,
-      seed: o.seed,
-      stride: stride,
-      /** 局號。給現場對照用：同一場所有手機應該顯示同一組四碼 */
-      code: ("000" + (o.seed >>> 0).toString(36).toUpperCase()).slice(-4),
-      size: function () { return order.length; },
-      remaining: function () { return order.length - deck.at; },
-      peek: function () { return deck.at < order.length ? order[deck.at] : null; },
-      /** @returns {Object|null} null = 整包出完了 */
-      next: function () {
-        var t = deck.peek();
-        if (t) { deck.at++; }
-        return t;
-      },
-      /** 還原存檔用：把游標移到某個 id 上（回傳是否找到） */
-      seekTo: function (id) {
-        for (var i = 0; i < order.length; i++) {
-          if (order[i].id === id) { deck.at = i; return true; }
-        }
-        return false;
-      },
-      reset: function () { deck.at = 0; }
+  /** 這個主題的 4 題，用 seed 洗過的順序。同一場活動所有手機算出來一樣 */
+  function orderOf(themes, round, seed) {
+    var ti = (round - 1) % themes.length;
+    return shuffle(themes[ti].terms.slice(), rng((seed >>> 0) + ti * 7919));
+  }
+
+  /**
+   * 第 g 組在第 r 輪拿到哪一題。
+   * @param {{themes:Array, round:number, group:number, seed:number}} o
+   * @returns {{theme:Object, term:Object, slot:number}}
+   */
+  function pick(o) {
+    var order = orderOf(o.themes, o.round, o.seed);
+    var n = order.length;
+    var g = o.group > 0 ? o.group : 1;
+    var slot = ((g - 1) + (o.round - 1)) % n;
+    return {
+      theme: themeAt(o.themes, o.round),
+      term: order[slot],
+      slot: slot
     };
-    return deck;
+  }
+
+  /** 幾組以內可以完全不撞題 = 每個主題的題數 */
+  function safeGroups(themes) {
+    return themes.reduce(function (m, t) {
+      return Math.min(m, t.terms.length);
+    }, Infinity);
   }
 
   global.TM_DECK = {
-    create: create, rng: rng, shuffle: shuffle,
-    hashSeed: hashSeed, randomSeed: randomSeed
+    pick: pick, themeAt: themeAt, orderOf: orderOf, safeGroups: safeGroups,
+    rng: rng, shuffle: shuffle, hashSeed: hashSeed
   };
 })(window);
