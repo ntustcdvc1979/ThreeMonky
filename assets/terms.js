@@ -8,9 +8,8 @@
    主題數 = 輪數。要多一輪就多一個主題，不要在同一個主題裡塞第 5 題
    （那會讓「各組不同題」的保證失效）。
 
-   ⚠️ 換 emoji 之前先在【主持人那台筆電】上確認畫得出來。Windows 10 的
-   Segoe UI Emoji 沒有比較新的字（例如 🪷 蓮花，Emoji 14）會變成豆腐框。
-   挑 Emoji 1.0 時代的字最保險。 */
+   主題只有名字，不配 emoji —— 投影幕上的主題是純文字，
+   後排看得清楚，也不會踩到舊系統缺字變豆腐框的問題。 */
 (function (global) {
   "use strict";
 
@@ -26,7 +25,7 @@
 
   var THEMES = [
     {
-      id: "shrine", name: "佛堂", emoji: "🛐",
+      id: "shrine", name: "佛堂",
       terms: [
         { id: "a1", t: "八卦爐", hint: "三隻腳的爐、八卦紋、插著香" },
         { id: "a2", t: "佛杯",   hint: "一排小杯子、擺在佛桌上" },
@@ -35,7 +34,7 @@
       ]
     },
     {
-      id: "etiquette", name: "生活禮節", emoji: "🙏",
+      id: "etiquette", name: "生活禮節",
       terms: [
         { id: "b1", t: "打毛巾", hint: "擰毛巾、雙手遞出去" },
         { id: "b2", t: "叩首",   hint: "跪著、額頭碰地" },
@@ -44,7 +43,7 @@
       ]
     },
     {
-      id: "deities", name: "仙佛", emoji: "✨",
+      id: "deities", name: "仙佛",
       terms: [
         { id: "c1", t: "濟公活佛",   hint: "破扇子、葫蘆、歪歪的帽子" },
         { id: "c2", t: "彌勒祖師",   hint: "大肚子、笑臉、布袋" },
@@ -53,7 +52,7 @@
       ]
     },
     {
-      id: "teams", name: "十組", emoji: "🧑‍🤝‍🧑",
+      id: "teams", name: "十組",
       terms: [
         { id: "d1", t: "活動組",   hint: "帶動唱、關卡、大聲公" },
         { id: "d2", t: "炊事組",   hint: "大鍋、鍋鏟、圍裙" },

@@ -13,9 +13,13 @@
   var DECK = window.TM_DECK;
   var ROLES = window.TM_ROLES.ROLES;
   var QR = window.CDVC_QR;
+  var BGM = window.TM_BGM;
 
   /* 連範例題也不想先曝光的話，把這個改成 false */
   var SHOW_DEMO_TERM = true;
+
+  /* 每一輪（＝每一題）的預設秒數。主持人可以用 +/- 和 1/2/3 現場調 */
+  var ROUND_SEC = 240;
 
   var KEY = "tm.stage.v1";
 
@@ -50,7 +54,7 @@
   var S = [];
   function add(o) { S.push(o); }
 
-  add({ kind: "cover",   label: "封面・掃 QR" });
+  add({ kind: "cover",   label: "封面" });
   add({ kind: "rules",   label: "三隻猴子是誰" });
   add({ kind: "lineup",  label: "話怎麼傳" });
   add({ kind: "demo",    label: "範例題：" + TERMS.DEMO.t });
@@ -58,8 +62,8 @@
   // 一輪 = 一個主題 = 一題。主題數就是輪數。
   THEMES.forEach(function (th, k) {
     var r = k + 1;
-    add({ kind: "round", n: r, theme: th, sec: (r === 1 ? 120 : 90),
-          label: "第 " + r + " 輪　" + th.emoji + " " + th.name });
+    add({ kind: "round", n: r, theme: th, sec: ROUND_SEC,
+          label: "第 " + r + " 輪　" + th.name });
     add({ kind: "timeup", n: r, label: "└ 時間到" });
   });
   add({ kind: "finale",  label: "結束" });
@@ -104,29 +108,20 @@
     }).join("") + "</div>";
   }
 
+  /* 封面先不放 QR，就是一張標題頁。要掃碼的那一步在「交接」頁。
+     emoji 包在 .plain 裡：.huge 是漸層剪字，emoji 套進去會被裁成
+     一片橘色剪影，得把 background-clip 還原回來才會有顏色。 */
   VIEWS.cover = function () {
     return "" +
-      '<div class="cover">' +
-        "<div>" +
-          '<p class="eyebrow">三個人一組</p>' +
-          '<h1 class="huge">三隻猴子</h1>' +
-          '<p class="lede">話從第一個人傳到第三個人，還會剩下多少？<br>' +
-            "題目只有 <b>🙊 比劃猴</b> 看得到，而答案 <b>不是用講的，是用畫的</b>。</p>" +
-        "</div>" +
-        '<div class="cover__qr">' +
-          '<div class="qr" id="qr"></div>' +
-          '<p class="cover__scan">SCAN ME</p>' +
-          '<p class="cover__url">' + esc(playUrl()) + "</p>" +
-          '<p class="cover__who">只有比劃猴要掃</p>' +
-        "</div>" +
-      "</div>";
+      '<p class="eyebrow">至善班相見歡</p>' +
+      '<h1 class="huge">三隻猴子<span class="plain">🙊🙉🙈</span></h1>' +
+      '<p class="lede"><br>' +
+        "每個人扮演不同的角色，分工合作畫出答案</p>";
   };
-
-  AFTER.cover = function () { $("qr").innerHTML = qrHtml(); };
 
   VIEWS.rules = function () {
     return "" +
-      '<h1 class="big">三隻猴子</h1>' +
+      '<h1 class="big">遊戲規則</h1>' +
       '<p class="lede">三個人一組。題目只有比劃猴看得到，' +
         "<b>答案不是用講的，是用畫的</b>。</p>" +
       '<div class="roles">' +
@@ -157,9 +152,7 @@
         monkey(ROLES[1]) + arrow("聽聲音") +
         monkey(ROLES[2]) + arrow("畫出來") +
         '<div class="lineup__m"><b aria-hidden="true">📄</b><span>答案</span></div>' +
-      "</div>" +
-      '<p class="lede">站哪裡不重要，只要傳話猴看不到題目、猜題猴閉著眼就行。<br>' +
-        '旁邊的人可以看，<b>但出聲提示就算那組犯規</b>。</p>';
+      "</div>";
   };
 
   VIEWS.demo = function () {
@@ -176,8 +169,8 @@
   VIEWS.handoff = function () {
     var steps = [
       ["①", "比劃猴掃 QR"],
-      ["②", "選你們是第幾組"],
-      ["③", "等我喊開始再按"]
+      ["②", "選一個代表數字"],
+      ["③", "靜待主持人開始"]
     ];
     return "" +
       '<p class="eyebrow">每組派一個人當 🙊 比劃猴</p>' +
@@ -201,7 +194,7 @@
     }
     return "" +
       '<p class="eyebrow">第 ' + sc.n + " / " + THEMES.length + " 輪　這一輪的主題</p>" +
-      '<h1 class="big theme">' + sc.theme.emoji + " " + esc(sc.theme.name) + "</h1>" +
+      '<h1 class="big theme">' + esc(sc.theme.name) + "</h1>" +
       '<div class="timer" id="clock">0:00<small>準備</small></div>' +
       roleBar();
   };
@@ -214,9 +207,9 @@
   VIEWS.timeup = function () {
     var th = DECK.themeAt(THEMES, S[i].n);
     return "" +
-      '<p class="eyebrow">' + th.emoji + " " + esc(th.name) + "</p>" +
+      '<p class="eyebrow">' + esc(th.name) + "</p>" +
       '<div class="slam">時間到 ✋</div>' +
-      '<p class="lede">🙈 猜題猴可以睜眼了。<br>把你畫的舉起來，跟原本的題目對一下。</p>';
+      '<p class="lede">請 🙈 猜題猴睜眼。<br>請分享你的曠世巨作</p>';
   };
 
   AFTER.timeup = function () {
@@ -250,7 +243,7 @@
     var extra = "";
     if (sc.kind === "round") {
       extra = "　<kbd>S</kbd> 3・2・1 開始　<kbd>T</kbd> 暫停　<kbd>+</kbd><kbd>-</kbd> 加減 30 秒" +
-        "　<kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> 2/2.5/3 分　<kbd>H</kbd> 收 QR";
+        "　<kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> 3/4/5 分　<kbd>H</kbd> 收 QR";
     }
     $("where").innerHTML = (i + 1) + " / " + S.length + "　" + esc(sc.label) + extra;
   }
@@ -334,8 +327,8 @@
     var n = S.filter(function (x) { return x.kind === "round"; }).length + 1;
     var th = DECK.themeAt(THEMES, n);            // 超過主題數就繞回第一個
     S.splice(at, 0,
-      { kind: "round", n: n, theme: th, sec: 90,
-        label: "第 " + n + " 輪　" + th.emoji + " " + th.name },
+      { kind: "round", n: n, theme: th, sec: ROUND_SEC,
+        label: "第 " + n + " 輪　" + th.name },
       { kind: "timeup", n: n, label: "└ 時間到" });
     $("menu").hidden = true;
     jump(at);
@@ -361,6 +354,20 @@
     }
   }
 
+  /** 嗶聲 + 背景音樂一起開關 */
+  function toggleSound() {
+    var on = !U.isMuted();          // 現在有聲 -> 要靜音
+    U.setMuted(on);
+    BGM.setMuted(on);
+    if (!on) { BGM.start(); }
+    paintSound();
+  }
+
+  function paintSound() {
+    var b = $("musicBtn");
+    if (b) { b.textContent = U.isMuted() ? "🔇 已靜音" : "🎵 音樂"; }
+  }
+
   function applyDark(on) {
     document.body.classList.toggle("dark", on);
     try { localStorage.setItem("tm.dark", on ? "1" : "0"); } catch (e) {}
@@ -372,6 +379,7 @@
   document.addEventListener("keydown", function (e) {
     var sc = S[i];
     U.warmAudio();                 // AudioContext 要在使用者手勢之後才能 resume
+    if (!U.isMuted()) { BGM.start(); }
 
     if (e.key === "Escape") { e.preventDefault(); toggleMenu(); return; }
     if (!$("menu").hidden) { return; }
@@ -387,7 +395,7 @@
     if (e.key === "-" || e.key === "_") { ticker.add(-30); return; }
 
     if (sc.kind === "round" && (e.key === "1" || e.key === "2" || e.key === "3")) {
-      sc.sec = { "1": 120, "2": 150, "3": 180 }[e.key];
+      sc.sec = { "1": 180, "2": 240, "3": 300 }[e.key];
       ranToZero = true;
       ticker.start(sc.sec);
       return;
@@ -397,7 +405,7 @@
 
     if (k === "f") { toggleFull(); return; }
     if (k === "c") { applyDark(!document.body.classList.contains("dark")); return; }
-    if (k === "m") { U.setMuted(!U.isMuted()); return; }
+    if (k === "m") { toggleSound(); return; }
 
     if (k === "h") { showQR = !showQR; paintCornerQR(); return; }
 
@@ -432,10 +440,12 @@
     var el = e.target.closest ? e.target.closest("[data-act]") : null;
     if (!el) { return; }
     var a = el.getAttribute("data-act");
+    if (!U.isMuted()) { BGM.start(); }     // 只用滑鼠的主持人也要能把音樂打開
     if (a === "prev") { go(-1); }
     else if (a === "next") { go(1); }
     else if (a === "menu") { toggleMenu(); }
     else if (a === "full") { toggleFull(); }
+    else if (a === "music") { toggleSound(); }
   });
 
   /* ============================================================
@@ -451,6 +461,7 @@
 
   if (S[i].kind === "round") { ticker.arm(S[i].sec); }
   render();
+  paintSound();
 
   // 投影端也註冊，主持人的筆電斷網一樣開得起來
   if ("serviceWorker" in navigator) {

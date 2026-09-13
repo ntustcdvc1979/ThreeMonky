@@ -86,6 +86,17 @@ body.dark .huge{filter:none;}
 @keyframes pop{from{opacity:0;transform:scale(.6);}to{opacity:1;transform:scale(1);}}
 
 /* ---------- 封面 ---------- */
+/* emoji 是彩色字符，套上 .huge 的 background-clip:text + 透明字色會被裁成
+   一片漸層剪影。放在 .plain 裡把它還原回來，才畫得出原本的顏色。 */
+.plain{
+  background:none;
+  -webkit-background-clip:border-box;background-clip:border-box;
+  color:var(--ink);
+  filter:none;
+}
+
+/* 下面這幾條目前只有「交接」頁在用（封面的 QR 已經拿掉）。
+   要把封面的 QR 加回來的話，這些樣式都還在。 */
 .cover{
   display:grid;grid-template-columns:1fr 1fr;gap:3rem;align-items:center;
   width:100%;max-width:88rem;text-align:left;

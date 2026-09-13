@@ -20,7 +20,7 @@
   var ROUNDS = THEMES.length;      // 主題數就是輪數
   var GROUPS = 12;                 // 組號按鈕做幾顆
   var KEY = "tm.play.v2";          // v1 是舊的難度制存檔，格式不相容
-  var DEFAULT_SEC = 90;            // 只有「自己計時」打開時才用得到
+  var DEFAULT_SEC = 240;           // 只有「自己計時」打開時才用得到，跟投影幕的預設一致
 
   var ST = {
     RESUME: "resume", SETUP: "setup",
@@ -170,7 +170,7 @@
   }
 
   function themePill(th) {
-    return '<span class="pill">' + th.emoji + " " + esc(th.name) + "</span>";
+    return '<span class="pill">' + esc(th.name) + "</span>";
   }
 
   function timerToggle() {
@@ -226,7 +226,7 @@
         '<span class="pill">第 ' + app.round + " / " + ROUNDS + " 輪</span>" +
       "</div>" +
       '<p class="eyebrow">這一輪的主題</p>' +
-      '<h1 class="hero">' + th.emoji + " " + esc(th.name) + "</h1>" +
+      '<h1 class="hero">' + esc(th.name) + "</h1>" +
       '<p class="lede">' + (app.selfTimer
         ? "按下去之後會開始倒數 " + fmtMin(DEFAULT_SEC) + "。"
         : "看投影幕上的大鐘，主持人喊開始你再按。") + "</p>" +
@@ -274,7 +274,7 @@
       '<div class="spacer"></div>' +
       '<div class="verdict verdict--' + (hit ? "hit" : "skip") + '">' +
         (hit ? "✅ 答對了" : "⏭ 沒猜到") + "</div>" +
-      '<p class="eyebrow">' + app.theme.emoji + " " + esc(app.theme.name) + "　答案是</p>" +
+      '<p class="eyebrow">' + esc(app.theme.name) + "　答案是</p>" +
       '<div class="term' + (t.t.length > 8 ? " term--long" : "") + '">' + esc(t.t) + "</div>" +
       (t.hint ? '<p class="hint">畫重點：' + esc(t.hint) + "</p>" : "") +
       '<div class="spacer"></div>' +

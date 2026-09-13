@@ -53,6 +53,10 @@
   function setMuted(v) { muted = !!v; }
   function isMuted() { return muted; }
 
+  /** 共用同一個 AudioContext：嗶聲和背景音樂都掛在它底下，
+      瀏覽器對每個分頁的 AudioContext 數量有上限，也省得各開一個 */
+  function ctx() { warmAudio(); return actx; }
+
   /* ---------- 計時器 ----------
      不用 setInterval 累減：投影機放 5 分鐘會漂移，分頁切到背景時
      Chrome 還會把 interval 節流到 1/min。改成記結束時刻、每幀重算。 */
@@ -119,7 +123,7 @@
 
   global.TM_UTIL = {
     $: $, esc: esc, dayKey: dayKey,
-    beep: beep, warmAudio: warmAudio, setMuted: setMuted, isMuted: isMuted,
+    beep: beep, warmAudio: warmAudio, ctx: ctx, setMuted: setMuted, isMuted: isMuted,
     Ticker: Ticker
   };
 })(window);
