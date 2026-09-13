@@ -21,6 +21,9 @@
   /* 每一輪（＝每一題）的預設秒數。主持人可以用 +/- 和 1/2/3 現場調 */
   var ROUND_SEC = 240;
 
+  /* 標了 volunteer 的主題是加碼題，只有自願的組別上，不算在正式輪數裡 */
+  var MAIN_ROUNDS = TERMS.THEMES.filter(function (t) { return !t.volunteer; }).length;
+
   var KEY = "tm.stage.v1";
 
   /* ============================================================
@@ -63,7 +66,7 @@
   THEMES.forEach(function (th, k) {
     var r = k + 1;
     add({ kind: "round", n: r, theme: th, sec: ROUND_SEC,
-          label: "第 " + r + " 輪　" + th.name });
+          label: th.volunteer ? "加碼題　" + th.name : "第 " + r + " 輪　" + th.name });
     add({ kind: "timeup", n: r, label: "└ 時間到" });
   });
   add({ kind: "finale",  label: "結束" });
@@ -168,20 +171,26 @@
 
   VIEWS.handoff = function () {
     var steps = [
-      ["①", "比劃猴掃 QR"],
+      ["①", "比劃猴掃 QR Code"],
       ["②", "選一個代表數字"],
       ["③", "靜待主持人開始"]
     ];
     return "" +
-      '<p class="eyebrow">每組派一個人當 🙊 比劃猴</p>' +
-      '<h1 class="big">拿出手機</h1>' +
-      '<div class="steps">' +
-        steps.map(function (s) {
-          return '<div class="step"><b>' + s[0] + "</b><span>" + esc(s[1]) + "</span></div>";
-        }).join("") +
-      "</div>" +
-      '<div class="qr" id="qr" style="width:min(22rem,26vw);margin:1.6rem auto 0;border:.3rem solid #fff"></div>' +
-      '<p class="cover__url" style="font-size:1.1rem">' + esc(playUrl()) + "</p>";
+      '<div class="handoff">' +
+        "<div>" +
+          '<p class="eyebrow">每組派一個人當 🙊 比劃猴</p>' +
+          '<h1 class="big">拿出手機</h1>' +
+          '<div class="steps">' +
+            steps.map(function (s) {
+              return '<div class="step"><b>' + s[0] + "</b><span>" + esc(s[1]) + "</span></div>";
+            }).join("") +
+          "</div>" +
+        "</div>" +
+        '<div class="handoff__qr">' +
+          '<div class="qr" id="qr"></div>' +
+          '<p class="cover__url">' + esc(playUrl()) + "</p>" +
+        "</div>" +
+      "</div>";
   };
 
   AFTER.handoff = function () { $("qr").innerHTML = qrHtml(); };
@@ -193,7 +202,9 @@
         esc(count) + "</div>";
     }
     return "" +
-      '<p class="eyebrow">第 ' + sc.n + " / " + THEMES.length + " 輪</p>" +
+      (sc.theme.volunteer
+        ? '<p class="eyebrow">加碼題</p><h1 class="big">徵求自願組別</h1>'
+        : '<p class="eyebrow">第 ' + sc.n + " / " + MAIN_ROUNDS + " 輪</p>") +
       '<div class="timer" id="clock">0:00<small>準備</small></div>' +
       roleBar();
   };

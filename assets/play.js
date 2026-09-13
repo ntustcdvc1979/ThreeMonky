@@ -17,7 +17,17 @@
   var ROLES = window.TM_ROLES.ROLES;
 
   var THEMES = TERMS.THEMES;
-  var ROUNDS = THEMES.length;      // 主題數就是輪數
+  var ROUNDS = THEMES.length;      // 主題數就是輪數（含最後的加碼題）
+  /* 加碼題只有自願的組別上，所以正式輪數要把它扣掉 */
+  var MAIN_ROUNDS = THEMES.filter(function (t) { return !t.volunteer; }).length;
+  function isBonus(round) { return !!DECK.themeAt(THEMES, round).volunteer; }
+  function roundLabel(round) {
+    return isBonus(round) ? "加碼題" : "第 " + round + " / " + MAIN_ROUNDS + " 輪";
+  }
+  /** 總結清單一行一題，不需要分母，短的比較好讀 */
+  function shortRound(round) {
+    return isBonus(round) ? "加碼題" : "第 " + round + " 輪";
+  }
   var GROUPS = 12;                 // 組號按鈕做幾顆
   var KEY = "tm.play.v2";          // v1 是舊的難度制存檔，格式不相容
   var DEFAULT_SEC = 240;           // 只有「自己計時」打開時才用得到，跟投影幕的預設一致
@@ -218,9 +228,9 @@
     return "" +
       '<div class="row row--between">' +
         '<span class="pill">第 ' + app.group + " 組</span>" +
-        '<span class="pill">第 ' + app.round + " / " + ROUNDS + " 輪</span>" +
+        '<span class="pill">' + roundLabel(app.round) + "</span>" +
       "</div>" +
-      '<h1 class="hero">準備好就開始</h1>' +
+      '<h1 class="hero">' + (isBonus(app.round) ? "加碼題，拚了" : "準備好就開始") + "</h1>" +
       '<p class="lede">' + (app.selfTimer
         ? "按下去之後會開始倒數 " + fmtMin(DEFAULT_SEC) + "。"
         : "看投影幕上的大鐘，主持人喊開始你再按。") + "</p>" +
@@ -242,7 +252,7 @@
     var t = app.cur;
     return "" +
       '<div class="row row--between">' +
-        '<span class="pill">第 ' + app.round + " / " + ROUNDS + " 輪</span>" +
+        '<span class="pill">' + roundLabel(app.round) + "</span>" +
         '<span class="pill">累計 ✅ ' + app.hit + "</span>" +
       "</div>" +
       (app.selfTimer ? '<div class="bar"><div class="bar__f" id="bar"></div></div>' : "") +
@@ -262,7 +272,6 @@
   VIEWS[ST.REVEAL] = function () {
     var t = app.cur;
     var hit = app.result === "hit";
-    var last = app.round >= ROUNDS;
     return "" +
       '<div class="spacer"></div>' +
       '<div class="verdict verdict--' + (hit ? "hit" : "skip") + '">' +
@@ -271,12 +280,23 @@
       '<div class="term' + (t.t.length > 8 ? " term--long" : "") + '">' + esc(t.t) + "</div>" +
       (t.hint ? '<p class="hint">畫重點：' + esc(t.hint) + "</p>" : "") +
       '<div class="spacer"></div>' +
-      '<p class="tiny">第 ' + app.round + " / " + ROUNDS + " 輪結束　·　累計答對 " + app.hit + " 題</p>" +
-      '<div class="acts">' +
-        '<button class="act act--go" data-act="' + (last ? "toSummary" : "nextRound") + '">' +
-          (last ? "看總結 ➜" : "下一輪 ➜") + "</button>" +
-      "</div>";
+      '<p class="tiny">' + roundLabel(app.round) + "結束　·　累計答對 " + app.hit + " 題</p>" +
+      '<div class="acts">' + revealActs() + "</div>";
   };
+
+  /** 揭曉頁底下要出現哪幾顆按鈕。
+      打完最後一個正式輪時要給兩條路 —— 加碼題是自願的，
+      不想上的組別必須能在這裡直接收掉。 */
+  function revealActs() {
+    if (app.round < MAIN_ROUNDS) {
+      return '<button class="act act--go" data-act="nextRound">下一輪 ➜</button>';
+    }
+    if (app.round === MAIN_ROUNDS && ROUNDS > MAIN_ROUNDS) {
+      return '<button class="act act--skip" data-act="toSummary">我們到這裡就好</button>' +
+        '<button class="act act--go" data-act="nextRound">挑戰加碼題 ➜</button>';
+    }
+    return '<button class="act act--go" data-act="toSummary">看總結 ➜</button>';
+  }
 
   /* 揭曉後 1.2 秒才讓按鈕吃點擊。比劃猴按「答對了」的手勢常常連著第二下，
      沒有這道閘會直接把答案跳掉，那組根本來不及看到題目。 */
@@ -291,7 +311,7 @@
     var items = app.log.map(function (e) {
       return '<li class="' + (e.r === "hit" ? "is-hit" : "is-skip") + '">' +
         '<span class="log__m" aria-hidden="true">' + (e.r === "hit" ? "✅" : "⏭") + "</span>" +
-        "<span>第 " + e.round + " 輪　" + esc(e.t) + "</span></li>";
+        "<span>" + shortRound(e.round) + "　" + esc(e.t) + "</span></li>";
     }).join("");
 
     return "" +

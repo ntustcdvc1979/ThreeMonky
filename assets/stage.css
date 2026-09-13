@@ -178,15 +178,30 @@ body.dark .term{filter:none;}
 }
 .rolebar b{color:var(--ink);font-weight:900;}
 
-/* ---------- 交接：三個步驟 ---------- */
-.steps{display:flex;gap:1.2rem;justify-content:center;align-items:stretch;margin-top:1.6rem;}
+/* ---------- 交接 ----------
+   左右兩欄：步驟直向排在左邊，QR 在右邊。
+   原本整頁往下堆，在 4:3 投影機上高度很擠 —— 橫向才是投影幕有餘裕的方向。 */
+.handoff{
+  display:grid;grid-template-columns:1.1fr .9fr;gap:3.5rem;align-items:center;
+  width:100%;max-width:84rem;text-align:left;
+}
+.handoff__qr{text-align:center;}
+.handoff__qr .qr{
+  width:min(28rem,32vw);margin:0 auto;
+  border:.35rem solid #fff;
+  box-shadow:0 .5rem 1.4rem rgba(90,52,18,.28);
+}
+.handoff__qr .cover__url{margin-top:.6rem;font-size:1.15rem;}
+
+.steps{display:grid;gap:1.1rem;margin-top:1.8rem;}
 .step{
-  flex:1;max-width:20rem;padding:1.4rem 1.2rem;border-radius:1.2rem;
+  display:flex;align-items:center;gap:1.2rem;
+  padding:1.1rem 1.4rem;border-radius:1.2rem;
   background:var(--card-bg);border:.14rem solid var(--card-line);
   box-shadow:0 .3rem 0 rgba(90,52,18,.12);
 }
-.step b{display:block;font-size:2.6rem;line-height:1.2;color:var(--flame);}
-.step span{display:block;margin-top:.4rem;font-size:1.85rem;font-weight:900;line-height:1.4;}
+.step b{flex:none;font-size:2.8rem;line-height:1.2;color:var(--flame);}
+.step span{font-size:1.85rem;font-weight:900;line-height:1.35;}
 
 /* ---------- 大倒數 ----------
    這是投影端的主角，字級遠大於 orientation 原本的 5.5rem */
